@@ -2,59 +2,51 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Кофе</title>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <title>AR Кофе Тест</title>
     <style>
         body { 
             margin: 0; 
+            padding: 20px;
             background: black; 
+            color: white;
+            font-family: Arial;
+            text-align: center;
         }
-        #startButton {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+        button {
             background: #8B4513;
             color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 18px;
+            padding: 20px 40px;
+            font-size: 20px;
             border-radius: 25px;
-            z-index: 1000;
+            margin: 10px;
         }
     </style>
 </head>
 <body>
-    <button id="startButton">🎥 Запустить AR</button>
-
-    <a-scene 
-        vr-mode-ui="enabled: false"
-        arjs="sourceType: webcam; debugUIEnabled: false;"
-        embedded
-        style="display: none;"
-        id="arScene"
-    >
-        <a-camera></a-camera>
-
-        <a-marker type="pattern" url="assets/pattern-marker.patt">
-            <a-video 
-                src="assets/video.mp4"
-                width="1.5"
-                height="1"
-                position="0 0.8 0"
-                rotation="-90 0 0"
-                muted loop
-                visible="true"
-            ></a-video>
-        </a-marker>
-    </a-scene>
+    <h1>Тест кнопки</h1>
+    
+    <button onclick="alert('Кнопка работает!')">Тест 1: Простая кнопка</button>
+    
+    <button onclick="startAR()">Тест 2: Запуск AR</button>
+    
+    <div id="status">Статус: Ожидание...</div>
 
     <script>
-        document.getElementById('startButton').onclick = function() {
-            document.getElementById('arScene').style.display = 'block';
-            this.style.display = 'none';
-        };
+        function startAR() {
+            document.getElementById('status').innerHTML = "Статус: Кнопка нажата!";
+            
+            // Проверяем загружены ли скрипты
+            if (typeof AFRAME === 'undefined') {
+                document.getElementById('status').innerHTML = "Ошибка: AFRAME не загружен";
+                return;
+            }
+            
+            document.getElementById('status').innerHTML = "Статус: AR запускается...";
+            
+            // Переходим на AR страницу
+            window.location.href = "ar.html";
+        }
     </script>
 </body>
 </html>
