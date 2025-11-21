@@ -82,19 +82,20 @@
             smoothTolerance="0.01"
             smoothThreshold="2"
         >
-    <!-- Замените видео-entity на это: -->
-<a-entity id="video-entity" position="0 0.8 0" rotation="-90 0 0">
-    <a-video 
-        src="assets/video.mp4"
-        width="auto"    <!-- Автоподбор ширины -->
-        height="1.0"    <!-- Фиксированная высота -->
-        position="0 0 0"
-        muted="true"
-        loop="true"
-        id="arVideo"
-        visible="false">
-    </a-video>
-</a-entity>
+            <!-- Видео с правильным соотношением сторон -->
+            <a-entity id="video-entity" position="0 0.8 0" rotation="-90 0 0">
+                <a-video 
+                    src="assets/video.mp4"
+                    width="auto"    <!-- Измените под ваше видео -->
+                    height="1.0" <!-- 16:9 соотношение (2.0 / 1.125) -->
+                    position="0 0 0"
+                    muted="true"
+                    loop="true"
+                    preload="auto"
+                    id="arVideo"
+                    visible="false">
+                </a-video>
+            </a-entity>
         </a-marker>
     </a-scene>
 
