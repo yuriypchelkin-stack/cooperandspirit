@@ -2,11 +2,17 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Кофе Тест</title>
+    <title>AR Кофе</title>
+    
+    <!-- Пробуем разные CDN для AFRAME -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
+    
+    <!-- Пробуем разные CDN для AR.js -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@master/aframe/build/aframe-ar.js"></script>
+    
     <style>
         body { 
             margin: 0; 
-            padding: 20px;
             background: black; 
             color: white;
             font-family: Arial;
@@ -19,34 +25,114 @@
             padding: 20px 40px;
             font-size: 20px;
             border-radius: 25px;
-            margin: 10px;
+            margin: 20px;
+        }
+        #status {
+            padding: 20px;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-    <h1>Тест кнопки</h1>
+    <h1>AR Просмотр упаковки кофе</h1>
     
-    <button onclick="alert('Кнопка работает!')">Тест 1: Простая кнопка</button>
+    <div id="status">Проверяем загрузку библиотек...</div>
     
-    <button onclick="startAR()">Тест 2: Запуск AR</button>
+    <button onclick="startAR()" id="arButton" style="display:none;">🎥 Запустить AR</button>
     
-    <div id="status">Статус: Ожидание...</div>
+    <button onclick="testLibraries()">🔍 Проверить библиотеки</button>
 
     <script>
-        function startAR() {
-            document.getElementById('status').innerHTML = "Статус: Кнопка нажата!";
+        // Проверяем загрузку библиотек
+        function checkLibraries() {
+            const status = document.getElementById('status');
+            const arButton = document.getElementById('arButton');
             
-            // Проверяем загружены ли скрипты
             if (typeof AFRAME === 'undefined') {
-                document.getElementById('status').innerHTML = "Ошибка: AFRAME не загружен";
+                status.innerHTML = "❌ AFRAME не загружен. Пробуем альтернативный CDN...";
+                // Пробуем загрузить с другого CDN
+                loadAlternativeAFRAME();
+                return false;
+            }
+            
+            if (typeof ARjs === 'undefined') {
+                status.innerHTML = "❌ AR.js не загружен. Пробуем альтернативный CDN...";
+                loadAlternativeARJS();
+                return false;
+            }
+            
+            status.innerHTML = "✅ Все библиотеки загружены!";
+            arButton.style.display = 'block';
+            return true;
+        }
+        
+        function loadAlternativeAFRAME() {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/aframe@1.4.0/dist/aframe-master.min.js';
+            script.onload = function() {
+                document.getElementById('status').innerHTML += "<br>✅ AFRAME загружен с альтернативного CDN";
+                checkLibraries();
+            };
+            script.onerror = function() {
+                document.getElementById('status').innerHTML += "<br>❌ Не удалось загрузить AFRAME";
+            };
+            document.head.appendChild(script);
+        }
+        
+        function loadAlternativeARJS() {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/ar.js@3.4.0/aframe/build/aframe-ar.js';
+            script.onload = function() {
+                document.getElementById('status').innerHTML += "<br>✅ AR.js загружен с альтернативного CDN";
+                checkLibraries();
+            };
+            script.onerror = function() {
+                document.getElementById('status').innerHTML += "<br>❌ Не удалось загрузить AR.js";
+            };
+            document.head.appendChild(script);
+        }
+        
+        function testLibraries() {
+            document.getElementById('status').innerHTML = "Проверяем библиотеки...";
+            checkLibraries();
+        }
+        
+        function startAR() {
+            if (!checkLibraries()) {
+                alert("Библиотеки не загружены. Не могу запустить AR.");
                 return;
             }
             
-            document.getElementById('status').innerHTML = "Статус: AR запускается...";
+            // Создаем AR сцену динамически
+            const sceneHTML = `
+            <a-scene 
+                vr-mode-ui="enabled: false"
+                arjs="sourceType: webcam; debugUIEnabled: false;"
+                embedded
+                style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;"
+            >
+                <a-camera></a-camera>
+                <a-marker type="pattern" url="assets/pattern-marker.patt">
+                    <a-video 
+                        src="assets/video.mp4"
+                        width="1.5"
+                        height="1"
+                        position="0 0.8 0"
+                        rotation="-90 0 0"
+                        muted loop
+                        visible="true"
+                    ></a-video>
+                </a-marker>
+            </a-scene>
+            `;
             
-            // Переходим на AR страницу
-            window.location.href = "ar.html";
+            document.body.innerHTML = sceneHTML;
         }
+        
+        // Проверяем библиотеки при загрузке
+        window.onload = function() {
+            setTimeout(checkLibraries, 1000);
+        };
     </script>
 </body>
 </html>
