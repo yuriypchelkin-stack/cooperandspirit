@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AR — Упаковка кофе (MindAR + A-Frame)</title>
+  <style>
+    html,body { height:100%; margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial; }
+    #app { position:fixed; inset:0; }
+    /* большая кнопка внизу */
+    #startBtn {
+      position:fixed; left:50%; bottom:32px; transform:translateX(-50%);
+      background:#0b76ff; color:white; border:0; padding:14px 20px; font-size:18px; border-radius:12px;
+      box-shadow:0 6px 18px rgba(11,118,255,0.28); z-index:9999;
+    }
+    #startBtn:active{ transform:translateX(-50%) scale(.98) }
+    #scanningOverlay {
+      position:fixed; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center; z-index:9998; pointer-events:none;
+      background:linear-gradient(transparent, rgba(0,0,0,0.2)); color:white; font-size:18px; text-align:center; padding:20px;
+    }
+    /* A-Frame canvas should fill screen */
+    a-scene { width:100%; height:100%; position:fixed; inset:0; }
+  </style>
+  <!-- A-Frame + MindAR (image tracking) -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+</head>
+<body>
+  <div id="app">
+    <div id="scanningOverlay">Нажмите «Посмотреть в VR», затем наведите камеру на упаковку кофе. Когда упаковка распознана — персонаж оживёт.</div>
+    <button id="startBtn">Посмотреть в VR</button>
+
+    <!-- MindAR A-Frame scene. autoStart: false — мы стартуем по нажатию -->
+    <a-scene id="arScene"
+             mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: #scanningOverlay;"
+             embedded
+             vr-mode-ui="enabled: false"
+             device-orientation-permission-ui="enabled: false"
+             color-space="sRGB"
+             renderer="colorManagement: true, physicallyCorrectLights">
+
+      <a-assets>
+        <!-- Замените character.gltf на ваш подготовленный glTF/GLB-модель персонажа -->
+        <a-asset-item id="characterModel" src="./model/character.gltf"></a-asset-item>
+      </a-assets>
+
+      <!-- Камера для AR (без look-controls) -->
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <!-- Одна цель (targetIndex: 0). Содержимое изначально невидимо -->
+      <a-entity id="target" mindar-image-target="targetIndex: 0">
+        <a-entity id="character"
+                  gltf-model="#characterModel"
+                  visible="false"
+                  scale="0.06 0.06 0.06"
+                  position="0 0 0"
+                  animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"
+                  animation-mixer>
+        </a-entity>
+      </a-entity>
+
+    </a-scene>
+  </div>
+
+  <script>
+    // UI elements
+    const startBtn = document.getElementById('startBtn');
+    const scanning = document.getElementById('scanningOverlay');
+    const sceneEl = document.querySelector('a-scene');
+    let arSystem = null;
+
+    // дождёмся загрузки сцены
+    sceneEl.addEventListener('loaded', () => {
+      arSystem = sceneEl.systems['mindar-image-system'];
+      // отслеживаем когда AR готов
+      sceneEl.addEventListener('arReady', () => {
+        scanning.style.display = 'none';
+      });
+      sceneEl.addEventListener('arError', (e) => {
+        alert('Не удалось получить доступ к камере или запустить AR: ' + (e.detail?.message || 'ошибка'));
+      });
+    });
+
+    startBtn.addEventListener('click', async () => {
+      try {
+        startBtn.disabled = true;
+        startBtn.innerText = 'Запуск камеры...';
+        // запустим движок MindAR (попросит разрешение на камеру)
+        await arSystem.start();
+        // скрываем кнопку
+        startBtn.style.display = 'none';
+      } catch (err) {
+        console.error(err);
+        alert('Ошибка запуска AR: ' + err.message);
+        startBtn.disabled = false;
+        startBtn.innerText = 'Посмотреть в VR';
+      }
+    });
+
+    // поведение при обнаружении/потере цели
+    const target = document.getElementById('target');
+    const char = document.getElementById('character');
+    target.addEventListener('targetFound', () => {
+      // показываем и запускаем простую анимацию — можно включить animation-mixer для скелетных анимаций
+      char.setAttribute('visible', 'true');
+      // если в модели есть animation-mixer, компонент начнёт проигрывать клипы автоматически
+    });
+    target.addEventListener('targetLost', () => {
+      char.setAttribute('visible', 'false');
+    });
+  </script>
+</body>
+</html>
