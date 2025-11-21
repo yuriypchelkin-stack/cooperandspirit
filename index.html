@@ -4,11 +4,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Кофе</title>
     
-    <!-- Пробуем разные CDN для AFRAME -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
-    
-    <!-- Пробуем разные CDN для AR.js -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@master/aframe/build/aframe-ar.js"></script>
+    <!-- Подключаем локальные файлы -->
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <script src="js/aframe-ar.js"></script>
     
     <style>
         body { 
@@ -27,112 +25,39 @@
             border-radius: 25px;
             margin: 20px;
         }
-        #status {
-            padding: 20px;
-            font-size: 18px;
-        }
     </style>
 </head>
 <body>
     <h1>AR Просмотр упаковки кофе</h1>
+    <p>Нажмите кнопку чтобы запустить камеру</p>
     
-    <div id="status">Проверяем загрузку библиотек...</div>
-    
-    <button onclick="startAR()" id="arButton" style="display:none;">🎥 Запустить AR</button>
-    
-    <button onclick="testLibraries()">🔍 Проверить библиотеки</button>
+    <button onclick="startAR()">🎥 Запустить AR</button>
 
     <script>
-        // Проверяем загрузку библиотек
-        function checkLibraries() {
-            const status = document.getElementById('status');
-            const arButton = document.getElementById('arButton');
-            
-            if (typeof AFRAME === 'undefined') {
-                status.innerHTML = "❌ AFRAME не загружен. Пробуем альтернативный CDN...";
-                // Пробуем загрузить с другого CDN
-                loadAlternativeAFRAME();
-                return false;
-            }
-            
-            if (typeof ARjs === 'undefined') {
-                status.innerHTML = "❌ AR.js не загружен. Пробуем альтернативный CDN...";
-                loadAlternativeARJS();
-                return false;
-            }
-            
-            status.innerHTML = "✅ Все библиотеки загружены!";
-            arButton.style.display = 'block';
-            return true;
-        }
-        
-        function loadAlternativeAFRAME() {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/aframe@1.4.0/dist/aframe-master.min.js';
-            script.onload = function() {
-                document.getElementById('status').innerHTML += "<br>✅ AFRAME загружен с альтернативного CDN";
-                checkLibraries();
-            };
-            script.onerror = function() {
-                document.getElementById('status').innerHTML += "<br>❌ Не удалось загрузить AFRAME";
-            };
-            document.head.appendChild(script);
-        }
-        
-        function loadAlternativeARJS() {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/ar.js@3.4.0/aframe/build/aframe-ar.js';
-            script.onload = function() {
-                document.getElementById('status').innerHTML += "<br>✅ AR.js загружен с альтернативного CDN";
-                checkLibraries();
-            };
-            script.onerror = function() {
-                document.getElementById('status').innerHTML += "<br>❌ Не удалось загрузить AR.js";
-            };
-            document.head.appendChild(script);
-        }
-        
-        function testLibraries() {
-            document.getElementById('status').innerHTML = "Проверяем библиотеки...";
-            checkLibraries();
-        }
-        
         function startAR() {
-            if (!checkLibraries()) {
-                alert("Библиотеки не загружены. Не могу запустить AR.");
-                return;
-            }
-            
-            // Создаем AR сцену динамически
-            const sceneHTML = `
-            <a-scene 
-                vr-mode-ui="enabled: false"
-                arjs="sourceType: webcam; debugUIEnabled: false;"
-                embedded
-                style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;"
-            >
-                <a-camera></a-camera>
-                <a-marker type="pattern" url="assets/pattern-marker.patt">
-                    <a-video 
-                        src="assets/video.mp4"
-                        width="1.5"
-                        height="1"
-                        position="0 0.8 0"
-                        rotation="-90 0 0"
-                        muted loop
-                        visible="true"
-                    ></a-video>
-                </a-marker>
-            </a-scene>
+            // Просто заменяем всю страницу на AR сцену
+            document.body.innerHTML = `
+                <a-scene 
+                    vr-mode-ui="enabled: false"
+                    arjs="sourceType: webcam; debugUIEnabled: false;"
+                    embedded
+                    style="width: 100%; height: 100vh;"
+                >
+                    <a-camera></a-camera>
+                    <a-marker type="pattern" url="assets/pattern-marker.patt">
+                        <a-video 
+                            src="assets/video.mp4"
+                            width="1.5"
+                            height="1"
+                            position="0 0.8 0"
+                            rotation="-90 0 0"
+                            muted loop
+                            visible="true"
+                        ></a-video>
+                    </a-marker>
+                </a-scene>
             `;
-            
-            document.body.innerHTML = sceneHTML;
         }
-        
-        // Проверяем библиотеки при загрузке
-        window.onload = function() {
-            setTimeout(checkLibraries, 1000);
-        };
     </script>
 </body>
 </html>
