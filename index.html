@@ -1,151 +1,31 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Кофе</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        
-        .ar-button {
-            background: #8B4513;
-            color: white;
-            border: none;
-            padding: 20px 40px;
-            font-size: 20px;
-            border-radius: 30px;
-            cursor: pointer;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-            transition: all 0.3s;
-        }
-        
-        .ar-button:hover {
-            background: #A0522D;
-            transform: scale(1.05);
-        }
-        
-        #loading {
-            display: none;
-            color: #8B4513;
-            font-size: 18px;
-        }
-        
-        a-scene {
-            display: none;
-            width: 100%;
-            height: 100vh;
-        }
-    </style>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <meta charset="utf-8">
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
-<body>
-    <div id="main-content">
-        <button id="ar-button" class="ar-button">
-            🕶️ Посмотреть в AR
-        </button>
-        <div id="loading">Загрузка AR...</div>
-    </div>
-
-    <a-scene 
+<body style="margin: 0; overflow: hidden;">
+    <a-scene
         vr-mode-ui="enabled: false"
-        arjs="sourceType: webcam; debugUIEnabled: true;"
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
         embedded
-        renderer="logarithmicDepthBuffer: true;"
-    >
-        <!-- Используем простой маркер для тестирования -->
-        <a-marker 
-            preset="hiro"
-            raycaster="objects: .clickable"
-        >
-            <a-video 
-                src="assets/video.mp4"
-                position="0 1.5 0"
-                width="2"
-                height="1"
-                rotation="-90 0 0"
-                class="clickable"
-                autoplay="true"
-                loop="true"
-                visible="true"
-            ></a-video>
-        </a-marker>
-        <a-entity camera></a-entity>
-    </a-scene>
+        renderer="antialias: true; alpha: true">
+        
+        <a-camera></a-camera>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const arButton = document.getElementById('ar-button');
-            const loading = document.getElementById('loading');
-            const mainContent = document.getElementById('main-content');
-            const scene = document.querySelector('a-scene');
-            
-            console.log('Страница загружена');
-            
-            arButton.addEventListener('click', function() {
-                console.log('Кнопка нажата');
-                
-                // Показываем загрузку
-                arButton.style.display = 'none';
-                loading.style.display = 'block';
-                
-                // Проверяем поддержку
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    alert('Ваш браузер не поддерживает доступ к камере');
-                    return;
-                }
-                
-                // Запрашиваем доступ к камере
-                navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function(stream) {
-                        console.log('Доступ к камере получен');
-                        
-                        // Скрываем основной контент и показываем AR
-                        mainContent.style.display = 'none';
-                        scene.style.display = 'block';
-                        loading.style.display = 'none';
-                        
-                        // Добавляем обработчики для маркера
-                        const marker = document.querySelector('a-marker');
-                        if (marker) {
-                            marker.addEventListener('markerFound', function() {
-                                console.log('Маркер найден!');
-                                const video = document.querySelector('a-video');
-                                if (video) {
-                                    video.setAttribute('visible', 'true');
-                                    // Пытаемся запустить видео
-                                    const videoEl = video.components.material.material.map.image;
-                                    videoEl.play().catch(e => console.log('Ошибка воспроизведения:', e));
-                                }
-                            });
-                            
-                            marker.addEventListener('markerLost', function() {
-                                console.log('Маркер потерян');
-                                const video = document.querySelector('a-video');
-                                if (video) {
-                                    video.setAttribute('visible', 'false');
-                                }
-                            });
-                        }
-                    })
-                    .catch(function(error) {
-                        console.error('Ошибка камеры:', error);
-                        alert('Ошибка доступа к камере: ' + error.message);
-                        // Возвращаем кнопку
-                        arButton.style.display = 'block';
-                        loading.style.display = 'none';
-                    });
-            });
-        });
-    </script>
+        <a-marker preset="hiro">
+            <a-video 
+                src="./assets/video.mp4"
+                width="2" 
+                height="1"
+                position="0 0.5 0"
+                rotation="-90 0 0"
+                autoplay="true"
+                loop="true">
+            </a-video>
+        </a-marker>
+        
+    </a-scene>
 </body>
 </html>
