@@ -1,212 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Кофе</title>
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
-        /* СБРОС ДЛЯ IPHONE */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
+        body { 
+            margin: 0; 
+            background: black; 
         }
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            position: fixed;
-            background: #000;
-        }
-        
-        /* Кнопка запуска */
         #startButton {
-            position: absolute;
-            bottom: 50px;
+            position: fixed;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             background: #8B4513;
             color: white;
             border: none;
-            padding: 20px 40px;
-            font-size: 20px;
-            border-radius: 30px;
-            cursor: pointer;
-            z-index: 1000;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        
-        /* Инструкция */
-        #instruction {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            text-align: center;
-            color: white;
-            background: rgba(0,0,0,0.8);
-            padding: 20px;
-            z-index: 1000;
-            font-family: Arial, sans-serif;
+            padding: 15px 30px;
             font-size: 18px;
-        }
-        
-        /* AR сцена - ФИКС для iPhone */
-        #arScene {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            display: none;
-        }
-        
-        /* Исправление для камеры iPhone */
-        .a-canvas {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
+            border-radius: 25px;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
-    <div id="instruction">Нажмите кнопку для запуска AR</div>
     <button id="startButton">🎥 Запустить AR</button>
 
-    <!-- УПРОЩЕННАЯ AR СЦЕНА для iPhone -->
     <a-scene 
         vr-mode-ui="enabled: false"
-        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono;"
+        arjs="sourceType: webcam; debugUIEnabled: false;"
         embedded
-        renderer="logarithmicDepthBuffer: true; alpha: true;"
+        style="display: none;"
         id="arScene"
     >
-        <!-- Камера -->
-        <a-camera id="camera" position="0 0 0"></a-camera>
+        <a-camera></a-camera>
 
-        <!-- Маркер -->
-        <a-marker 
-            type="pattern" 
-            url="assets/pattern-marker.patt"
-            id="marker"
-            smooth="true"
-            smoothCount="5"
-            smoothTolerance="0.01"
-        >
-            <!-- Видео -->
+        <a-marker type="pattern" url="assets/pattern-marker.patt">
             <a-video 
                 src="assets/video.mp4"
                 width="1.5"
-                height="1.0"
-                position="0 1.0 0"
+                height="1"
+                position="0 0.8 0"
                 rotation="-90 0 0"
-                muted="true"
-                loop="true"
-                autoplay="true"
-                visible="false"
-                id="arVideo"
+                muted loop
+                visible="true"
             ></a-video>
         </a-marker>
     </a-scene>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const startButton = document.getElementById('startButton');
-            const scene = document.getElementById('arScene');
-            const instruction = document.getElementById('instruction');
-            
-            // Функция для запуска AR
-            function startAR() {
-                console.log('Запускаем AR...');
-                
-                // Скрываем кнопку
-                startButton.style.display = 'none';
-                instruction.textContent = 'Загружаем AR...';
-                
-                // Показываем сцену
-                scene.style.display = 'block';
-                
-                // Даем время на инициализацию
-                setTimeout(function() {
-                    instruction.textContent = 'Наведите камеру на упаковку кофе';
-                    
-                    // Находим элементы
-                    const marker = document.getElementById('marker');
-                    const video = document.getElementById('arVideo');
-                    
-                    if (!marker) {
-                        console.error('Маркер не найден!');
-                        instruction.textContent = 'Ошибка: маркер не загружен';
-                        return;
-                    }
-                    
-                    if (!video) {
-                        console.error('Видео не найдено!');
-                        instruction.textContent = 'Ошибка: видео не загружено';
-                        return;
-                    }
-                    
-                    console.log('Элементы найдены, ждем маркер...');
-                    
-                    // Когда маркер найден
-                    marker.addEventListener('markerFound', function() {
-                        console.log('✅ Маркер распознан!');
-                        instruction.textContent = 'Упаковка распознана!';
-                        video.setAttribute('visible', 'true');
-                        
-                        // Пытаемся запустить видео
-                        try {
-                            const videoElement = video.components.material.material.map.image;
-                            if (videoElement) {
-                                videoElement.play().then(() => {
-                                    console.log('Видео запущено');
-                                }).catch(e => {
-                                    console.log('Ошибка воспроизведения:', e);
-                                });
-                            }
-                        } catch (e) {
-                            console.log('Ошибка доступа к видео:', e);
-                        }
-                    });
-                    
-                    // Когда маркер потерян
-                    marker.addEventListener('markerLost', function() {
-                        console.log('Маркер потерян');
-                        instruction.textContent = 'Наведите на упаковку кофе';
-                        video.setAttribute('visible', 'false');
-                    });
-                    
-                }, 1000);
-            }
-            
-            // Обработчик кнопки
-            startButton.addEventListener('click', startAR);
-            startButton.addEventListener('touchend', startAR); // для touch устройств
-            
-            // Исправление размеров для iPhone
-            function fixiPhoneLayout() {
-                const canvas = document.querySelector('canvas');
-                if (canvas) {
-                    canvas.style.width = '100%';
-                    canvas.style.height = '100%';
-                    canvas.style.objectFit = 'cover';
-                }
-                
-                // Исправление viewport для iPhone
-                document.documentElement.style.height = '100%';
-                document.body.style.height = '100%';
-            }
-            
-            // Применяем исправления
-            setTimeout(fixiPhoneLayout, 500);
-            window.addEventListener('resize', fixiPhoneLayout);
-        });
+        document.getElementById('startButton').onclick = function() {
+            document.getElementById('arScene').style.display = 'block';
+            this.style.display = 'none';
+        };
     </script>
 </body>
 </html>
