@@ -3,118 +3,255 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>AR Кофе - iOS Оптимизированный</title>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+  <title>AR Кофе - WebXR</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
   <style>
-    * { 
-      margin: 0; 
-      padding: 0; 
+    * {
+      margin: 0;
+      padding: 0;
       box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-      -webkit-user-select: none;
-      user-select: none;
     }
-    html, body { 
-      width: 100%; 
-      height: 100%; 
-      overflow: hidden; 
-      position: fixed;
+    body {
+      margin: 0;
+      overflow: hidden;
       background: #000;
-      touch-action: none;
-      -webkit-overflow-scrolling: touch;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    #instruction { 
-      position: absolute; 
+    #ui {
+      position: absolute;
       top: 0;
-      left: 0; 
-      width: 100%; 
-      text-align: center; 
-      color: white; 
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
-      z-index: 1000; 
-      background: rgba(0,0,0,0.8); 
+      left: 0;
+      width: 100%;
       padding: 20px;
-      pointer-events: none;
-      font-size: 18px;
+      text-align: center;
+      z-index: 1000;
+      background: rgba(0,0,0,0.7);
     }
     #startButton {
-      position: absolute;
-      bottom: 50px;
-      left: 50%;
-      transform: translateX(-50%);
       background: #8B4513;
       color: white;
       border: none;
-      padding: 20px 40px;
-      font-size: 20px;
-      border-radius: 30px;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 25px;
       cursor: pointer;
-      z-index: 1001;
-      -webkit-appearance: none;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      margin: 10px;
     }
-    #loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: white;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      text-align: center;
-      z-index: 999;
+    #status {
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       display: none;
     }
   </style>
 </head>
 <body>
-  <div id="instruction">Нажмите кнопку для запуска AR</div>
-  <div id="loading">Загружаем AR...</div>
-  <button id="startButton">🚀 Запустить AR</button>
+  <div id="ui">
+    <h1>AR Кофе - WebXR</h1>
+    <div id="status">Проверяем поддержку WebXR...</div>
+    <button id="startButton" disabled>🚀 Запустить AR</button>
+  </div>
+  <canvas id="canvas"></canvas>
 
-  <a-scene 
-      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.001; filterBeta: 0.1;"
-      id="ar-scene"
-      embedded 
-      renderer="colorManagement: true; antialias: false; precision: low; alpha: true;"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-      style="display: none;">
-    
-    <a-assets>
-      <video id="video" src="assets/video.mp4" preload="auto" loop playsinline webkit-playsinline muted></video>
-    </a-assets>
+  <script>
+    let xrSession = null;
+    let xrRefSpace = null;
+    let gl = null;
+    let videoTexture = null;
+    let video = null;
+    let videoMesh = null;
 
-    <a-camera 
-        position="0 0 0" 
-        active="false" 
-        id="camera"
-        wasd-controls="enabled: false"
-        look-controls="enabled: false">
-    </a-camera>
+    // Проверяем поддержку WebXR
+    async function checkWebXRSupport() {
+      const status = document.getElementById('status');
+      const startButton = document.getElementById('startButton');
+      
+      if (!navigator.xr) {
+        status.textContent = 'WebXR не поддерживается вашим браузером';
+        return false;
+      }
 
-    <a-entity mindar-image-target="targetIndex: 0">
-  <a-entity 
-      position="0 0.8 0" 
-      rotation="0 0 0"
-      id="target-entity"
-      matrix-auto-update="false">
-    <a-video 
-        src="#video"
-        width="1.6" 
-        height="0.9"
-        position="0 0 0"
-        autoplay="true"
-        visible="false"
-        id="ar-video"
-        matrix-auto-update="false">
-    </a-video>
-  </a-entity>
-</a-entity>
-  </a-scene>
+      try {
+        // Проверяем поддержку AR сессии
+        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+        
+        if (supported) {
+          status.textContent = 'WebXR AR поддерживается!';
+          startButton.disabled = false;
+          return true;
+        } else {
+          status.textContent = 'AR не поддерживается на этом устройстве';
+          return false;
+        }
+      } catch (error) {
+        status.textContent = 'Ошибка проверки WebXR: ' + error.message;
+        return false;
+      }
+    }
 
- 
+    // Инициализация WebXR
+    async function initializeWebXR() {
+      const status = document.getElementById('status');
+      const canvas = document.getElementById('canvas');
+      const ui = document.getElementById('ui');
+      
+      try {
+        status.textContent = 'Запускаем WebXR...';
+        
+        // Создаем WebGL контекст
+        gl = canvas.getContext('webgl', { 
+          xrCompatible: true,
+          alpha: true,
+          antialias: false
+        });
+        
+        if (!gl) {
+          throw new Error('WebGL не поддерживается');
+        }
+
+        // Создаем сцену Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 100);
+        
+        // Создаем видео текстуру
+        video = document.createElement('video');
+        video.src = 'assets/video.mp4';
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        
+        videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBFormat;
+        
+        // Создаем плоскость для видео
+        const videoGeometry = new THREE.PlaneGeometry(1.6, 0.9);
+        const videoMaterial = new THREE.MeshBasicMaterial({ 
+          map: videoTexture,
+          transparent: true,
+          side: THREE.DoubleSide
+        });
+        
+        videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
+        videoMesh.position.set(0, 0.8, 0);
+        videoMesh.rotation.x = -Math.PI / 2;
+        videoMesh.visible = false;
+        scene.add(videoMesh);
+        
+        // Настройка рендерера
+        const renderer = new THREE.WebGLRenderer({
+          canvas: canvas,
+          context: gl,
+          alpha: true,
+          antialias: false
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // Запрашиваем AR сессию
+        const sessionInit = { 
+          requiredFeatures: ['hit-test', 'dom-overlay'],
+          optionalFeatures: ['image-tracking'],
+          domOverlay: { root: document.body }
+        };
+        
+        xrSession = await navigator.xr.requestSession('immersive-ar', sessionInit);
+        xrSession.addEventListener('end', onSessionEnd);
+        
+        // Настройка рендер state
+        await xrSession.updateRenderState({
+          baseLayer: new XRWebGLLayer(xrSession, gl)
+        });
+        
+        xrRefSpace = await xrSession.requestReferenceSpace('local');
+        
+        // Показываем canvas и скрываем UI
+        canvas.style.display = 'block';
+        ui.style.display = 'none';
+        
+        // Запускаем видео
+        video.play().catch(e => {
+          console.log('Ошибка воспроизведения видео:', e);
+        });
+        
+        // Запускаем рендер цикл
+        xrSession.requestAnimationFrame(onXRFrame);
+        
+        status.textContent = 'AR запущено! Найдите упаковку кофе';
+        
+      } catch (error) {
+        status.textContent = 'Ошибка запуска AR: ' + error.message;
+        console.error('WebXR error:', error);
+      }
+    }
+
+    // Рендер цикл WebXR
+    function onXRFrame(time, frame) {
+      const pose = frame.getViewerPose(xrRefSpace);
+      
+      if (pose) {
+        // Здесь можно добавить логику для image tracking
+        // К сожалению, WebXR Image Tracking пока плохо поддерживается в Safari
+        
+        // Временно показываем видео всегда (для тестирования)
+        videoMesh.visible = true;
+      }
+      
+      // Продолжаем цикл рендеринга
+      xrSession.requestAnimationFrame(onXRFrame);
+    }
+
+    // Завершение сессии
+    function onSessionEnd() {
+      const ui = document.getElementById('ui');
+      const canvas = document.getElementById('canvas');
+      const status = document.getElementById('status');
+      const startButton = document.getElementById('startButton');
+      
+      ui.style.display = 'block';
+      canvas.style.display = 'none';
+      status.textContent = 'AR сессия завершена';
+      startButton.disabled = false;
+      
+      if (video) {
+        video.pause();
+      }
+      
+      xrSession = null;
+    }
+
+    // Инициализация при загрузке
+    document.addEventListener('DOMContentLoaded', async () => {
+      const startButton = document.getElementById('startButton');
+      
+      // Проверяем поддержку WebXR
+      await checkWebXRSupport();
+      
+      startButton.addEventListener('click', initializeWebXR);
+      
+      // Авто-запуск при поддержке (опционально)
+      // if (await checkWebXRSupport()) {
+      //   setTimeout(initializeWebXR, 1000);
+      // }
+    });
+
+    // Обработка изменения размера окна
+    window.addEventListener('resize', () => {
+      if (gl) {
+        gl.canvas.width = window.innerWidth;
+        gl.canvas.height = window.innerHeight;
+      }
+    });
+  </script>
 </body>
 </html>
