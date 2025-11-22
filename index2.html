@@ -2,8 +2,8 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>AR Кофе - Стабильная версия</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Кофе - MindAR</title>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
@@ -12,322 +12,131 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
     }
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      width: 100vw;
+      height: 100vh;
       position: fixed;
-      background: #000;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    #instruction {
-      position: absolute;
+    #instruction { 
+      position: absolute; 
       top: 0;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      color: white;
-      background: rgba(0,0,0,0.8);
-      padding: 20px;
-      z-index: 1000;
+      left: 0; 
+      width: 100%; 
+      text-align: center; 
+      color: white; 
+      font-family: Arial; 
+      z-index: 1000; 
+      background: rgba(0,0,0,0.7); 
+      padding: 15px;
       pointer-events: none;
     }
     #startButton {
       position: absolute;
-      bottom: 50px;
+      bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
       background: #8B4513;
       color: white;
       border: none;
-      padding: 20px 40px;
-      font-size: 20px;
-      border-radius: 30px;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 25px;
       cursor: pointer;
       z-index: 1001;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
-    #stabilityInfo {
-      position: absolute;
-      bottom: 120px;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      color: #8B4513;
-      font-size: 14px;
-      z-index: 1000;
-      pointer-events: none;
+    .a-canvas {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
     }
   </style>
 </head>
 <body>
-  <div id="instruction">Нажмите кнопку для запуска AR</div>
-  <div id="stabilityInfo">Держите телефон неподвижно для лучшей стабилизации</div>
+  <div id="instruction">Наведите камеру на упаковку кофе</div>
   <button id="startButton">🚀 Запустить AR</button>
 
   <a-scene 
-      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false;"
+      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; maxTrack: 1;"
       id="ar-scene"
       embedded 
-      renderer="colorManagement: true; antialias: true;"
+      renderer="colorManagement: true;"
       vr-mode-ui="enabled: false"
-      style="display: none;">
+      device-orientation-permission-ui="enabled: false">
     
     <a-assets>
       <video id="video" src="assets/video.mp4" preload="auto" loop playsinline webkit-playsinline muted></video>
     </a-assets>
 
-    <a-camera position="0 0 0" active="false" id="camera"></a-camera>
+    <a-camera 
+        position="0 0 0" 
+        look-controls="enabled: false" 
+        active="false"
+        id="camera">
+    </a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
-      <a-entity 
-          position="0 0.8 0" 
-          rotation="0 0 0"
-          id="target-entity">
-        <a-video 
-            src="#video"
-            width="1.6" 
-            height="0.9"
-            position="0 0 0"
-            autoplay="true"
-            visible="false"
-            id="ar-video">
-        </a-video>
-      </a-entity>
+      <!-- Упрощенное позиционирование как в официальных примерах -->
+      <a-video 
+          src="#video"
+          width="1.6" 
+          height="0.9"
+          position="0 0.8 0"
+          rotation="-90 0 0"
+          autoplay="true"
+          visible="false"
+          id="ar-video">
+      </a-video>
     </a-entity>
   </a-scene>
 
   <script>
-    class VideoStabilizer {
-      constructor() {
-        this.positionBuffer = [];
-        this.rotationBuffer = [];
-        this.bufferSize = 10; // Размер буфера для усреднения
-        this.stabilityThreshold = 0.01; // Порог стабильности
-        this.isStable = false;
-      }
-
-      // Добавляем новую позицию в буфер
-      addPosition(position) {
-        this.positionBuffer.push({
-          x: position.x,
-          y: position.y,
-          z: position.z,
-          timestamp: Date.now()
-        });
-
-        // Удаляем старые данные
-        if (this.positionBuffer.length > this.bufferSize) {
-          this.positionBuffer.shift();
-        }
-      }
-
-      // Добавляем новое вращение в буфер
-      addRotation(rotation) {
-        this.rotationBuffer.push({
-          x: rotation.x,
-          y: rotation.y,
-          z: rotation.z,
-          timestamp: Date.now()
-        });
-
-        if (this.rotationBuffer.length > this.bufferSize) {
-          this.rotationBuffer.shift();
-        }
-      }
-
-      // Получаем сглаженную позицию
-      getStablePosition() {
-        if (this.positionBuffer.length < 2) {
-          return this.positionBuffer[0] || { x: 0, y: 0.8, z: 0 };
-        }
-
-        // Используем взвешенное среднее (новые данные имеют больший вес)
-        let totalWeight = 0;
-        let weightedSum = { x: 0, y: 0, z: 0 };
-
-        this.positionBuffer.forEach((pos, index) => {
-          const weight = (index + 1) / this.positionBuffer.length; // Вес от 0.1 до 1.0
-          totalWeight += weight;
-          weightedSum.x += pos.x * weight;
-          weightedSum.y += pos.y * weight;
-          weightedSum.z += pos.z * weight;
-        });
-
-        return {
-          x: weightedSum.x / totalWeight,
-          y: weightedSum.y / totalWeight,
-          z: weightedSum.z / totalWeight
-        };
-      }
-
-      // Получаем сглаженное вращение
-      getStableRotation() {
-        if (this.rotationBuffer.length < 2) {
-          return this.rotationBuffer[0] || { x: 0, y: 0, z: 0 };
-        }
-
-        let totalWeight = 0;
-        let weightedSum = { x: 0, y: 0, z: 0 };
-
-        this.rotationBuffer.forEach((rot, index) => {
-          const weight = (index + 1) / this.rotationBuffer.length;
-          totalWeight += weight;
-          weightedSum.x += rot.x * weight;
-          weightedSum.y += rot.y * weight;
-          weightedSum.z += rot.z * weight;
-        });
-
-        return {
-          x: weightedSum.x / totalWeight,
-          y: weightedSum.y / totalWeight,
-          z: weightedSum.z / totalWeight
-        };
-      }
-
-      // Проверяем стабильность
-      checkStability() {
-        if (this.positionBuffer.length < 3) return false;
-
-        // Проверяем изменения в последних позициях
-        const recent = this.positionBuffer.slice(-3);
-        let positionChange = 0;
-
-        for (let i = 1; i < recent.length; i++) {
-          positionChange += Math.abs(recent[i].x - recent[i-1].x);
-          positionChange += Math.abs(recent[i].y - recent[i-1].y);
-          positionChange += Math.abs(recent[i].z - recent[i-1].z);
-        }
-
-        this.isStable = positionChange < this.stabilityThreshold;
-        return this.isStable;
-      }
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
       const startButton = document.getElementById('startButton');
       const scene = document.getElementById('ar-scene');
       const instruction = document.getElementById('instruction');
-      const stabilityInfo = document.getElementById('stabilityInfo');
       
-      const stabilizer = new VideoStabilizer();
-      let isTracking = false;
-      let animationFrameId = null;
-
-      function stabilizeVideo() {
-        if (!isTracking) {
-          animationFrameId = requestAnimationFrame(stabilizeVideo);
-          return;
-        }
-
-        const targetEntity = document.querySelector('[mindar-image-target]');
-        if (targetEntity) {
-          const position = targetEntity.getAttribute('position');
-          const rotation = targetEntity.getAttribute('rotation');
-
-          if (position && rotation) {
-            // Добавляем текущие данные в стабилизатор
-            stabilizer.addPosition(position);
-            stabilizer.addRotation(rotation);
-
-            // Проверяем стабильность
-            const isStable = stabilizer.checkStability();
-
-            // Получаем сглаженные данные
-            const stablePosition = stabilizer.getStablePosition();
-            const stableRotation = stabilizer.getStableRotation();
-
-            // Применяем к видео
-            const videoEntity = document.getElementById('target-entity');
-            if (videoEntity) {
-              // Если стабильно - используем сглаженные данные, иначе - оригинальные
-              if (isStable && stabilizer.positionBuffer.length > 5) {
-                videoEntity.setAttribute('position', {
-                  x: stablePosition.x,
-                  y: stablePosition.y + 0.8,
-                  z: stablePosition.z
-                });
-                videoEntity.setAttribute('rotation', stableRotation);
-              } else {
-                // Используем оригинальные данные, но с небольшой задержкой
-                videoEntity.setAttribute('position', {
-                  x: position.x,
-                  y: position.y + 0.8,
-                  z: position.z
-                });
-                videoEntity.setAttribute('rotation', rotation);
-              }
-            }
-
-            // Обновляем информацию о стабильности
-            stabilityInfo.textContent = isStable ? 
-              '✓ Стабильное отслеживание' : 
-              'Держите телефон неподвижно для стабилизации';
-            stabilityInfo.style.color = isStable ? '#4CAF50' : '#8B4513';
-          }
-        }
-
-        animationFrameId = requestAnimationFrame(stabilizeVideo);
-      }
-
       startButton.addEventListener('click', function() {
+        // Скрываем кнопку
         startButton.style.display = 'none';
-        instruction.textContent = 'Запускаем AR...';
-        stabilityInfo.style.display = 'block';
-
+        instruction.textContent = 'Ищем упаковку...';
+        
+        // Запрашиваем доступ к камере
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           navigator.mediaDevices.getUserMedia({ 
             video: { 
-              facingMode: 'environment',
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
+              facingMode: 'environment'
             } 
           })
           .then(function(stream) {
-            scene.style.display = 'block';
-            instruction.textContent = 'Наведите камеру на упаковку кофе';
-
-            // Даем время на инициализацию
-            setTimeout(() => {
-              const arSystem = scene.systems["mindar-image-system"];
-              if (arSystem) {
-                arSystem.start();
-                document.getElementById('camera').setAttribute('active', 'true');
-                
-                // Запускаем стабилизацию
-                stabilizeVideo();
-              }
-            }, 1000);
-
+            // Запускаем AR сцену
+            const arSystem = scene.systems["mindar-image-system"];
+            arSystem.start();
+            
+            // Активируем камеру
+            document.getElementById('camera').setAttribute('active', 'true');
+            
+            // Обработчики для маркера
             const target = document.querySelector('[mindar-image-target]');
-            if (target) {
-              target.addEventListener('targetFound', event => {
-                isTracking = true;
-                instruction.textContent = 'Упаковка распознана!';
-                document.getElementById('ar-video').setAttribute('visible', 'true');
-
-                const video = document.getElementById('video');
-                if (video) {
-                  video.play().catch(e => {
-                    console.log('Автовоспроизведение заблокировано');
-                  });
-                }
-              });
-
-              target.addEventListener('targetLost', event => {
-                isTracking = false;
-                instruction.textContent = 'Наведите камеру на упаковку кофе';
-                document.getElementById('ar-video').setAttribute('visible', 'false');
-                stabilityInfo.textContent = 'Держите телефон неподвижно для стабилизации';
-                stabilityInfo.style.color = '#8B4513';
-                
-                // Очищаем буфер при потере маркера
-                stabilizer.positionBuffer = [];
-                stabilizer.rotationBuffer = [];
-              });
-            }
+            target.addEventListener('targetFound', event => {
+              console.log('Цель найдена!');
+              instruction.textContent = 'Упаковка распознана!';
+              document.getElementById('ar-video').setAttribute('visible', 'true');
+              
+              // Запускаем видео
+              const video = document.getElementById('video');
+              video.play().catch(e => console.log('Ошибка видео:', e));
+            });
+            
+            target.addEventListener('targetLost', event => {
+              console.log('Цель потеряна');
+              instruction.textContent = 'Наведите камеру на упаковку кофе';
+              document.getElementById('ar-video').setAttribute('visible', 'false');
+            });
           })
           .catch(function(error) {
             console.error('Ошибка камеры:', error);
@@ -337,13 +146,6 @@
           });
         } else {
           instruction.textContent = 'Ваш браузер не поддерживает AR';
-        }
-      });
-
-      // Очистка при закрытии страницы
-      window.addEventListener('beforeunload', function() {
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
         }
       });
     });
