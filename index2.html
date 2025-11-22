@@ -2,23 +2,26 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Кофе - MindAR</title>
-  <!-- Исправлены протоколы на https -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR Кофе — Финальная версия</title>
+  
+  <!-- CDN через HTTPS (обязательно для современных браузеров) -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+  
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      margin: 0; overflow: hidden; width: 100vw; height: 100vh;
+    body, html {
+      margin: 0; overflow: hidden; width: 100%; height: 100%;
       position: fixed; background: #000;
     }
     #instruction {
       position: absolute; top: 0; left: 0; width: 100%;
       text-align: center; color: white; font-family: Arial;
-      z-index: 1000; background: rgba(0,0,0,0.7);
-      padding: 15px; pointer-events: none;
+      z-index: 1000; background: rgba(0,0,0,0.8);
+      padding: 12px; pointer-events: none;
+      font-size: 16px;
     }
     #startButton {
       position: absolute; bottom: 30px; left: 50%;
@@ -31,6 +34,11 @@
       position: absolute !important; top: 0 !important;
       left: 0 !important; width: 100% !important;
       height: 100% !important; image-rendering: crisp-edges;
+      will-change: transform; backface-visibility: hidden;
+    }
+    /* Дополнительная чёткость для видео */
+    #ar-video {
+      image-rendering: pixelated;
     }
   </style>
 </head>
@@ -38,20 +46,23 @@
   <div id="instruction">Наведите камеру на упаковку кофе</div>
   <button id="startButton">🚀 Запустить AR</button>
 
+
   <a-scene
-      mindar-image="
-        imageTargetSrc: assets/targets.mind;
-        autoStart: false;
-        smooth: true;
-        smoothCount: 15;          /* Усиленное сглаживание */
-        smoothTolerance: 0.002;   /* Строгий фильтр */
-        uiScanning: #instruction;
-        uiError: #instruction"
-      id="ar-scene"
-      color-space="sRGB"
-      embedded
-      renderer="colorManagement: true; alpha: true;"
-      vr-mode-ui="enabled: false">
+    id="ar-scene"
+    mindar-image="
+      imageTargetSrc: assets/targets.mind;
+      autoStart: false;
+      smooth: true;
+      smoothCount: 25;
+      smoothTolerance: 0.001;
+      maxTrackableDistance: 0.4;
+      minTrackableDistance: 0.05;
+      uiScanning: #instruction;
+      uiError: #instruction"
+    color-space="sRGB"
+    embedded
+    renderer="colorManagement: true; alpha: true;"
+    vr-mode-ui="enabled: false">
 
     <a-assets>
       <video id="video" src="assets/video.mp4" preload="auto" loop playsinline muted></video>
@@ -59,14 +70,16 @@
 
     <a-camera position="0 0 0" active="false" id="camera"></a-camera>
 
+
     <a-entity mindar-image-target="targetIndex: 0">
+      <!-- position="0 -0.1 0" — сдвиг вниз для точной привязки -->
       <a-video
-          src="#video"
-          width="1.6"
-          height="0.9"
-          position="0 0 0"
-          visible="false"
-          id="ar-video">
+        src="#video"
+        width="1.6"
+        height="0.9"
+        position="0 -0.1 0"
+        visible="false"
+        id="ar-video">
       </a-video>
     </a-entity>
   </a-scene>
@@ -78,8 +91,10 @@
       const video = document.getElementById('video');
       const arVideo = document.getElementById('ar-video');
 
+      const scene = document.getElementById('ar-scene');
+
       startButton.addEventListener('click', async () => {
-        // Скрываем кнопку
+        // Скрываем кнопку при нажатии
         startButton.style.display = 'none';
         instruction.textContent = 'Ожидание камеры...';
 
@@ -91,20 +106,25 @@
 
           instruction.textContent = 'Поиск упаковки...';
 
-          // Получаем систему AR после загрузки сцены
-          const scene = document.getElementById('ar-scene');
-          await scene.systems['mindar-image-system'].start();
 
-          // Активируем камеру
+          // Запускаем AR-систему
+          await scene.systems['mindar-image-system'].start();
           document.getElementById('camera').setAttribute('active', 'true');
 
           // Обработчики событий
           const target = document.querySelector('[mindar-image-target]');
-          
+
           target.addEventListener('targetFound', () => {
             instruction.textContent = 'Упаковка распознана!';
-            arVideo.setAttribute('visible', 'true');
-            video.play().catch(e => console.error('Ошибка видео:', e));
+            
+            // Задержка показа на 100 мс для стабилизации
+            setTimeout(() => {
+              arVideo.setAttribute('visible', 'true');
+              video.play().catch(err => {
+                console.error('Ошибка воспроизведения видео:', err);
+                instruction.textContent = 'Ошибка видео. Проверьте файл.';
+              });
+            }, 100);
           });
 
           target.addEventListener('targetLost', () => {
