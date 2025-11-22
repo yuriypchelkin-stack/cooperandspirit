@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Кофе - MindAR</title>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+    }
+    #instruction { 
+      position: absolute; 
+      top: 0;
+      left: 0; 
+      width: 100%; 
+      text-align: center; 
+      color: white; 
+      font-family: Arial; 
+      z-index: 1000; 
+      background: rgba(0,0,0,0.7); 
+      padding: 15px;
+      pointer-events: none;
+    }
+    #startButton {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #8B4513;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 25px;
+      cursor: pointer;
+      z-index: 1001;
+    }
+    .a-canvas {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="instruction">Наведите камеру на упаковку кофе</div>
+  <button id="startButton">🚀 Запустить AR</button>
+
+  <a-scene 
+      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothTolerance: 0.01; smoothThreshold: 5;"
+      id="ar-scene"
+      color-space="sRGB"
+      embedded 
+      renderer="colorManagement: true; physicallyCorrectLights: true;"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+    
+    <a-assets>
+      <video id="video" src="assets/video.mp4" preload="auto" loop playsinline webkit-playsinline muted></video>
+    </a-assets>
+
+    <a-camera 
+        position="0 0 0" 
+        look-controls="enabled: false" 
+        cursor="rayOrigin: mouse;"
+        active="false"
+        id="camera">
+    </a-camera>
+
+    <a-entity mindar-image-target="targetIndex: 0">
+      <!-- Добавлено сглаживание позиции и вращения -->
+      <a-entity 
+          position="0 0.8 0" 
+          rotation="0 0 0"
+          mindar-image-target="targetIndex: 0"
+          id="target-entity"
+      >
+        <a-video 
+            src="#video"
+            width="1.6" 
+            height="0.9"
+            position="0 0 0"
+            autoplay="true"
+            visible="false"
+            id="ar-video">
+        </a-video>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const startButton = document.getElementById('startButton');
+      const scene = document.getElementById('ar-scene');
+      const instruction = document.getElementById('instruction');
+      
+      // Переменные для сглаживания
+      let targetEntity = null;
+      let currentPosition = { x: 0, y: 0.8, z: 0 };
+      let currentRotation = { x: 0, y: 0, z: 0 };
+      const smoothingFactor = 0.3; // Коэффициент сглаживания (0.1 - сильное, 0.9 - слабое)
+      
+      startButton.addEventListener('click', function() {
+        // Скрываем кнопку
+        startButton.style.display = 'none';
+        instruction.textContent = 'Ищем упаковку...';
+        
+        // Запрашиваем доступ к камере
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+              // Запускаем AR сцену
+              const arSystem = scene.systems["mindar-image-system"];
+              arSystem.start();
+              
+              // Активируем камеру
+              document.getElementById('camera').setAttribute('active', 'true');
+              
+              // Находим entity для сглаживания
+              targetEntity = document.getElementById('target-entity');
+              
+              // Обработчики для маркера
+              const target = document.querySelector('[mindar-image-target]');
+              target.addEventListener('targetFound', event => {
+                console.log('Цель найдена!');
+                instruction.textContent = 'Упаковка распознана!';
+                document.getElementById('ar-video').setAttribute('visible', 'true');
+                
+                // Запускаем видео
+                const video = document.getElementById('video');
+                video.play().catch(e => console.log('Ошибка видео:', e));
+                
+                // Запускаем сглаживание
+                startSmoothing();
+              });
+              
+              target.addEventListener('targetLost', event => {
+                console.log('Цель потеряна');
+                instruction.textContent = 'Наведите камеру на упаковку кофе';
+                document.getElementById('ar-video').setAttribute('visible', 'false');
+                
+                // Останавливаем сглаживание
+                stopSmoothing();
+              });
+            })
+            .catch(function(error) {
+              console.error('Ошибка камеры:', error);
+              instruction.textContent = 'Ошибка доступа к камере';
+              startButton.style.display = 'block';
+              startButton.textContent = '🔄 Попробовать снова';
+            });
+        } else {
+          instruction.textContent = 'Ваш браузер не поддерживает AR';
+        }
+      });
+      
+      // Функции для сглаживания
+      let smoothingInterval = null;
+      
+      function startSmoothing() {
+        if (smoothingInterval) clearInterval(smoothingInterval);
+        
+        smoothingInterval = setInterval(() => {
+          if (!targetEntity) return;
+          
+          // Получаем текущую позицию и вращение
+          const position = targetEntity.getAttribute('position');
+          const rotation = targetEntity.getAttribute('rotation');
+          
+          // Применяем сглаживание
+          currentPosition.x = lerp(currentPosition.x, position.x, smoothingFactor);
+          currentPosition.y = lerp(currentPosition.y, position.y, smoothingFactor);
+          currentPosition.z = lerp(currentPosition.z, position.z, smoothingFactor);
+          
+          currentRotation.x = lerp(currentRotation.x, rotation.x, smoothingFactor);
+          currentRotation.y = lerp(currentRotation.y, rotation.y, smoothingFactor);
+          currentRotation.z = lerp(currentRotation.z, rotation.z, smoothingFactor);
+          
+          // Обновляем позицию видео
+          const video = document.getElementById('ar-video');
+          if (video) {
+            video.setAttribute('position', `${currentPosition.x} ${currentPosition.y} ${currentPosition.z}`);
+            video.setAttribute('rotation', `${currentRotation.x} ${currentRotation.y} ${currentRotation.z}`);
+          }
+        }, 16); // ~60 FPS
+      }
+      
+      function stopSmoothing() {
+        if (smoothingInterval) {
+          clearInterval(smoothingInterval);
+          smoothingInterval = null;
+        }
+      }
+      
+      // Функция линейной интерполяции
+      function lerp(start, end, factor) {
+        return start + (end - start) * factor;
+      }
+    });
+  </script>
+</body>
+</html>
