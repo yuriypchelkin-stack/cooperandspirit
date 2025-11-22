@@ -1,146 +1,68 @@
-<!DOCTYPE html>
+
 <html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR Кофе — Финальная версия</title>
-  
-  <!-- CDN через HTTPS (обязательно для современных браузеров) -->
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
-  
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body, html {
-      margin: 0; overflow: hidden; width: 100%; height: 100%;
-      position: fixed; background: #000;
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="importmap">
+    {
+      "imports": {
+	"three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+	"three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+	"mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+      }
     }
-    #instruction {
-      position: absolute; top: 0; left: 0; width: 100%;
-      text-align: center; color: white; font-family: Arial;
-      z-index: 1000; background: rgba(0,0,0,0.8);
-      padding: 12px; pointer-events: none;
-      font-size: 16px;
-    }
-    #startButton {
-      position: absolute; bottom: 30px; left: 50%;
-      transform: translateX(-50%); background: #8B4513;
-      color: white; border: none; padding: 15px 30px;
-      font-size: 18px; border-radius: 25px; cursor: pointer;
-      z-index: 1001;
-    }
-    .a-canvas {
-      position: absolute !important; top: 0 !important;
-      left: 0 !important; width: 100% !important;
-      height: 100% !important; image-rendering: crisp-edges;
-      will-change: transform; backface-visibility: hidden;
-    }
-    /* Дополнительная чёткость для видео */
-    #ar-video {
-      image-rendering: pixelated;
-    }
-  </style>
-</head>
-<body>
-  <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR</button>
-
-
-  <a-scene
-    id="ar-scene"
-    mindar-image="
-      imageTargetSrc: assets/targets.mind;
-      autoStart: false;
-      smooth: true;
-      smoothCount: 25;
-      smoothTolerance: 0.001;
-      maxTrackableDistance: 0.4;
-      minTrackableDistance: 0.05;
-      uiScanning: #instruction;
-      uiError: #instruction"
-    color-space="sRGB"
-    embedded
-    renderer="colorManagement: true; alpha: true;"
-    vr-mode-ui="enabled: false">
-
-    <a-assets>
-      <video id="video" src="assets/video.mp4" preload="auto" loop playsinline muted></video>
-    </a-assets>
-
-    <a-camera position="0 0 0" active="false" id="camera"></a-camera>
-
-
-    <a-entity mindar-image-target="targetIndex: 0">
-      <!-- position="0 -0.1 0" — сдвиг вниз для точной привязки -->
-      <a-video
-        src="#video"
-        width="1.6"
-        height="0.9"
-        position="0 -0.1 0"
-        visible="false"
-        id="ar-video">
-      </a-video>
-    </a-entity>
-  </a-scene>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const startButton = document.getElementById('startButton');
-      const instruction = document.getElementById('instruction');
-      const video = document.getElementById('video');
-      const arVideo = document.getElementById('ar-video');
-
-      const scene = document.getElementById('ar-scene');
-
-      startButton.addEventListener('click', async () => {
-        // Скрываем кнопку при нажатии
-        startButton.style.display = 'none';
-        instruction.textContent = 'Ожидание камеры...';
-
-        try {
-          // Доступ к камере
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-          });
-
-          instruction.textContent = 'Поиск упаковки...';
-
-
-          // Запускаем AR-систему
-          await scene.systems['mindar-image-system'].start();
-          document.getElementById('camera').setAttribute('active', 'true');
-
-          // Обработчики событий
-          const target = document.querySelector('[mindar-image-target]');
-
-          target.addEventListener('targetFound', () => {
-            instruction.textContent = 'Упаковка распознана!';
-            
-            // Задержка показа на 100 мс для стабилизации
-            setTimeout(() => {
-              arVideo.setAttribute('visible', 'true');
-              video.play().catch(err => {
-                console.error('Ошибка воспроизведения видео:', err);
-                instruction.textContent = 'Ошибка видео. Проверьте файл.';
-              });
-            }, 100);
-          });
-
-          target.addEventListener('targetLost', () => {
-            instruction.textContent = 'Наведите на упаковку';
-            arVideo.setAttribute('visible', 'false');
-            video.pause();
-            video.currentTime = 0;
-          });
-
-        } catch (err) {
-          console.error('Ошибка:', err);
-          instruction.textContent = `Ошибка: ${err.message || 'Неизвестная ошибка'}`;
-          startButton.style.display = 'block';
-        }
+    </script>
+    <script type="module">
+      import * as THREE from 'three';
+      import { MindARThree } from 'mindar-image-three';
+      const mindarThree = new MindARThree({
+	container: document.querySelector("#container"),
+	imageTargetSrc: "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind"
       });
-    });
-  </script>
-</body>
+      const {renderer, scene, camera} = mindarThree;
+      const anchor = mindarThree.addAnchor(0);
+      const geometry = new THREE.PlaneGeometry(1, 0.55);
+      const material = new THREE.MeshBasicMaterial( {color: 0x00ffff, transparent: true, opacity: 0.5} );
+      const plane = new THREE.Mesh( geometry, material );
+      anchor.group.add(plane);
+      const start = async() => {
+	await mindarThree.start();
+	renderer.setAnimationLoop(() => {
+	  renderer.render(scene, camera);
+	});
+      }
+      const startButton = document.querySelector("#startButton");
+      startButton.addEventListener("click", () => {
+	start();
+      });
+      stopButton.addEventListener("click", () => {
+	mindarThree.stop();
+	mindarThree.renderer.setAnimationLoop(null);
+      });
+    </script>
+    <style>
+      body {
+	margin: 0;
+      }
+      #container {
+	width: 100vw;
+	height: 100vh;
+	position: relative;
+	overflow: hidden;
+      }
+      #control {
+	position: fixed;
+	top: 0;
+	left: 0;
+	z-index: 2;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="control">
+      <button id="startButton">Start</button>
+      <button id="stopButton">Stop</button>
+    </div>
+    <div id="container">
+    </div>
+  </body>
 </html>
