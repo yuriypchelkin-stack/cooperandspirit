@@ -2,37 +2,105 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Кофе - MindAR Ускоренный</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>AR Кофе - iOS Оптимизированный</title>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { margin: 0; overflow: hidden; width: 100vw; height: 100vh; position: fixed; }
-    #instruction { position: absolute; top: 0; left: 0; width: 100%; text-align: center; color: white; font-family: Arial; z-index: 1000; background: rgba(0,0,0,0.7); padding: 15px; pointer-events: none; }
-    #startButton { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: #8B4513; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 25px; cursor: pointer; z-index: 1001; }
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    html, body { 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden; 
+      position: fixed;
+      background: #000;
+      touch-action: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    #instruction { 
+      position: absolute; 
+      top: 0;
+      left: 0; 
+      width: 100%; 
+      text-align: center; 
+      color: white; 
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+      z-index: 1000; 
+      background: rgba(0,0,0,0.8); 
+      padding: 20px;
+      pointer-events: none;
+      font-size: 18px;
+    }
+    #startButton {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #8B4513;
+      color: white;
+      border: none;
+      padding: 20px 40px;
+      font-size: 20px;
+      border-radius: 30px;
+      cursor: pointer;
+      z-index: 1001;
+      -webkit-appearance: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-align: center;
+      z-index: 999;
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <div id="instruction">Наведите камеру на упаковку кофе</div>
+  <div id="instruction">Нажмите кнопку для запуска AR</div>
+  <div id="loading">Загружаем AR...</div>
   <button id="startButton">🚀 Запустить AR</button>
 
   <a-scene 
-      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; maxTrack: 2;"
+      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; maxTrack: 1; filterMinCF: 0.001; filterBeta: 0.1;"
       id="ar-scene"
       embedded 
-      renderer="colorManagement: true; antialias: false; precision: low;"
-      vr-mode-ui="enabled: false">
+      renderer="colorManagement: true; antialias: false; precision: low; alpha: true;"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+      style="display: none;">
     
     <a-assets>
       <video id="video" src="assets/video.mp4" preload="auto" loop playsinline webkit-playsinline muted></video>
     </a-assets>
 
-    <a-camera position="0 0 0" active="false" id="camera"></a-camera>
+    <a-camera 
+        position="0 0 0" 
+        active="false" 
+        id="camera"
+        wasd-controls="enabled: false"
+        look-controls="enabled: false">
+    </a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
-      <a-entity position="0 0.8 0" rotation="0 0 0">
+      <a-entity 
+          position="0 0.8 0" 
+          rotation="0 0 0"
+          id="target-entity"
+          matrix-auto-update="false">
         <a-video 
             src="#video"
             width="1.6" 
@@ -40,7 +108,8 @@
             position="0 0 0"
             autoplay="true"
             visible="false"
-            id="ar-video">
+            id="ar-video"
+            matrix-auto-update="false">
         </a-video>
       </a-entity>
     </a-entity>
@@ -51,27 +120,33 @@
       const startButton = document.getElementById('startButton');
       const scene = document.getElementById('ar-scene');
       const instruction = document.getElementById('instruction');
+      const loading = document.getElementById('loading');
       
-      // Кастомное сглаживание
+      // Агрессивное сглаживание для iOS
+      let isTracking = false;
       let targetPosition = { x: 0, y: 0.8, z: 0 };
       let targetRotation = { x: 0, y: 0, z: 0 };
       let currentPosition = { x: 0, y: 0.8, z: 0 };
       let currentRotation = { x: 0, y: 0, z: 0 };
-      const smoothing = 0.1; // Очень сильное сглаживание
+      const smoothing = 0.05; // ОЧЕНЬ сильное сглаживание
       
       function updateSmoothing() {
-        // Линейная интерполяция позиции
-        currentPosition.x += (targetPosition.x - currentPosition.x) * smoothing;
-        currentPosition.y += (targetPosition.y - currentPosition.y) * smoothing;
-        currentPosition.z += (targetPosition.z - currentPosition.z) * smoothing;
+        if (!isTracking) {
+          requestAnimationFrame(updateSmoothing);
+          return;
+        }
         
-        // Линейная интерполяция вращения
-        currentRotation.x += (targetRotation.x - currentRotation.x) * smoothing;
-        currentRotation.y += (targetRotation.y - currentRotation.y) * smoothing;
-        currentRotation.z += (targetRotation.z - currentRotation.z) * smoothing;
+        // Экспоненциальное сглаживание
+        currentPosition.x = currentPosition.x * (1 - smoothing) + targetPosition.x * smoothing;
+        currentPosition.y = currentPosition.y * (1 - smoothing) + targetPosition.y * smoothing;
+        currentPosition.z = currentPosition.z * (1 - smoothing) + targetPosition.z * smoothing;
+        
+        currentRotation.x = currentRotation.x * (1 - smoothing) + targetRotation.x * smoothing;
+        currentRotation.y = currentRotation.y * (1 - smoothing) + targetRotation.y * smoothing;
+        currentRotation.z = currentRotation.z * (1 - smoothing) + targetRotation.z * smoothing;
         
         // Применяем к видео
-        const videoEntity = document.querySelector('[mindar-image-target] a-entity');
+        const videoEntity = document.getElementById('target-entity');
         if (videoEntity) {
           videoEntity.setAttribute('position', `${currentPosition.x} ${currentPosition.y} ${currentPosition.z}`);
           videoEntity.setAttribute('rotation', `${currentRotation.x} ${currentRotation.y} ${currentRotation.z}`);
@@ -80,52 +155,98 @@
         requestAnimationFrame(updateSmoothing);
       }
       
+      // Запускаем сглаживание сразу
+      updateSmoothing();
+      
       startButton.addEventListener('click', function() {
         startButton.style.display = 'none';
-        instruction.textContent = 'Ищем упаковку...';
+        loading.style.display = 'block';
+        instruction.textContent = 'Запрашиваем доступ к камере...';
+        
+        // Для iOS - специальный запрос камеры
+        const constraints = {
+          video: {
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
         
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          navigator.mediaDevices.getUserMedia({ video: true })
+          navigator.mediaDevices.getUserMedia(constraints)
             .then(function(stream) {
-              const arSystem = scene.systems["mindar-image-system"];
-              arSystem.start();
-              document.getElementById('camera').setAttribute('active', 'true');
+              loading.style.display = 'none';
+              scene.style.display = 'block';
+              instruction.textContent = 'Наведите камеру на упаковку кофе';
               
-              // Запускаем кастомное сглаживание
-              updateSmoothing();
+              // Даем время на инициализацию
+              setTimeout(() => {
+                const arSystem = scene.systems["mindar-image-system"];
+                if (arSystem) {
+                  arSystem.start();
+                  document.getElementById('camera').setAttribute('active', 'true');
+                }
+              }, 500);
               
               const target = document.querySelector('[mindar-image-target]');
-              target.addEventListener('targetFound', event => {
-                instruction.textContent = 'Упаковка распознана!';
-                document.getElementById('ar-video').setAttribute('visible', 'true');
+              if (target) {
+                target.addEventListener('targetFound', event => {
+                  isTracking = true;
+                  instruction.textContent = 'Упаковка распознана!';
+                  document.getElementById('ar-video').setAttribute('visible', 'true');
+                  
+                  // Запускаем видео
+                  const video = document.getElementById('video');
+                  if (video) {
+                    video.play().catch(e => {
+                      console.log('Автовоспроизведение заблокировано, пробуем с жестом');
+                    });
+                  }
+                  
+                  // Обновляем целевую позицию для сглаживания
+                  const targetEntity = event.target;
+                  const position = targetEntity.getAttribute('position');
+                  const rotation = targetEntity.getAttribute('rotation');
+                  
+                  if (position && rotation) {
+                    targetPosition = { 
+                      x: position.x, 
+                      y: position.y + 0.8, 
+                      z: position.z 
+                    };
+                    targetRotation = { 
+                      x: rotation.x, 
+                      y: rotation.y, 
+                      z: rotation.z 
+                    };
+                  }
+                });
                 
-                const video = document.getElementById('video');
-                video.play().catch(e => console.log('Ошибка видео:', e));
-                
-                // Обновляем целевую позицию для сглаживания
-                const targetEntity = event.target;
-                const position = targetEntity.getAttribute('position');
-                const rotation = targetEntity.getAttribute('rotation');
-                
-                targetPosition = { x: position.x, y: position.y + 0.8, z: position.z };
-                targetRotation = { x: rotation.x, y: rotation.y, z: rotation.z };
-              });
-              
-              target.addEventListener('targetLost', event => {
-                instruction.textContent = 'Наведите камеру на упаковку кофе';
-                document.getElementById('ar-video').setAttribute('visible', 'false');
-              });
+                target.addEventListener('targetLost', event => {
+                  isTracking = false;
+                  instruction.textContent = 'Наведите камеру на упаковку кофе';
+                  document.getElementById('ar-video').setAttribute('visible', 'false');
+                });
+              }
             })
             .catch(function(error) {
               console.error('Ошибка камеры:', error);
-              instruction.textContent = 'Ошибка доступа к камере';
+              loading.style.display = 'none';
+              instruction.textContent = 'Ошибка доступа к камере. Убедитесь, что разрешили доступ к камере.';
               startButton.style.display = 'block';
               startButton.textContent = '🔄 Попробовать снова';
             });
         } else {
+          loading.style.display = 'none';
           instruction.textContent = 'Ваш браузер не поддерживает AR';
         }
       });
+      
+      // Исправление для Safari
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        document.body.style.height = '100vh';
+        document.body.style.overflow = 'hidden';
+      }
     });
   </script>
 </body>
