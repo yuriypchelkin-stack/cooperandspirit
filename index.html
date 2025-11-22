@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.1/dist/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+      body, html { margin: 0; overflow: hidden; }
+      #arButton { position: absolute; top: 10px; left: 10px; z-index: 10; padding: 10px 20px; background: #000; color:#fff; border-radius:8px; }
+    </style>
+  </head>
+
+  <body>
+    <button id="arButton">Посмотреть в VR</button>
+
+    <a-scene
+      mindar-image="imageTargetSrc: ./assets/targets.mind;"
+      color-space="sRGB"
+      embedded
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets>
+        <video id="characterVideo" src="./assets/video.webm" autoplay loop playsinline webkit-playsinline></video>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-video
+          src="#characterVideo"
+          position="0 0 0"
+          width="1"
+          height="1.5"
+        ></a-video>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      document.getElementById("arButton").onclick = () => {
+        document.querySelector("a-scene").components["mindar-image"].start();
+      };
+    </script>
+  </body>
+</html>
