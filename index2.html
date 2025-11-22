@@ -2,211 +2,119 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
-  <title>AR Кофе - MindAR</title>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR Кофе</title>
+  <!-- Исправленные ссылки (http вместо https) -->
+  <script src="http://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
+  <script src="http://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="http://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      overflow: hidden;
-      width: 100vw;
-      height: 100vh;
-      position: fixed;
-      touch-action: pan-y;
-      -webkit-tap-highlight-color: transparent;
-      background: #000;
-    }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
     #instruction {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      text-align: center;
+      top: 0; left: 0; width: 100%;
+      background: rgba(0,0,0,0.7);
       color: white;
-      font-family: Arial, sans-serif;
-      font-size: 16px;
+      text-align: center;
+      padding: 10px;
+      font-family: Arial;
       z-index: 1000;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 12px;
-      pointer-events: none;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     #startButton {
       position: absolute;
-      bottom: 30px;
-      left: 50%;
+      bottom: 30px; left: 50%;
       transform: translateX(-50%);
       background: #8B4513;
       color: white;
       border: none;
       padding: 15px 30px;
-      font-size: 18px;
-      font-weight: bold;
       border-radius: 25px;
       cursor: pointer;
       z-index: 1001;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-      transition: transform 0.2s;
-    }
-    #startButton:hover {
-      transform: translateX(-50%) scale(1.05);
     }
     .a-canvas {
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
       image-rendering: crisp-edges;
       will-change: transform;
-      backface-visibility: hidden;
     }
   </style>
 </head>
 <body>
-  <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR</button>
+  <div id="instruction">Наведите камеру на упаковку</div>
+  <button id="startButton">Запустить AR</button>
 
   <a-scene
-      mindar-image="
-        imageTargetSrc: assets/targets.mind;
-        autoStart: false;
-        smooth: true;
-        smoothCount: 15;
-        smoothTolerance: 0.003;
-        maxTrackableDistance: 0.5;
-        minTrackableDistance: 0.1;
-        uiScanning: #instruction;
-        uiError: #instruction"
-      id="ar-scene"
-      color-space="sRGB"
-      embedded
-      renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true;"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false">
+    mindar-image="
+      imageTargetSrc: assets/targets.mind;
+      autoStart: false;
+      smooth: true;
+      smoothCount: 10;
+      smoothTolerance: 0.005"
+    color-space="sRGB"
+    embedded
+    renderer="colorManagement: true; alpha: true">
 
     <a-assets>
-      <video id="video" src="assets/video.mp4" preload="auto" loop playsinline webkit-playsinline muted></video>
+      <video id="video" src="assets/video.mp4" loop muted></video>
     </a-assets>
 
-    <a-camera
-        position="0 0 0"
-        look-controls="enabled: false"
-        cursor="rayOrigin: mouse;"
-        active="false"
-        id="camera">
-    </a-camera>
+    <a-camera active="false"></a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
-      <a-entity position="0 0.8 0" rotation="0 0 0">
-        <a-video
-            src="#video"
-            width="1.6"
-            height="0.9"
-            position="0 0 0"
-            autoplay="false"
-            visible="false"
-            id="ar-video"
-            animation__fadein="
-              property: components.material.material.opacity;
-              from: 0;
-              to: 1;
-              dur: 400;
-              easing: easeInOutQuad;
-              startEvents: fadein">
-        </a-video>
-      </a-entity>
+      <a-video
+        src="#video"
+        width="1.6"
+        height="0.9"
+        position="0 0 0"
+        visible="false"
+        id="ar-video">
+      </a-video>
     </a-entity>
   </a-scene>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const startButton = document.getElementById('startButton');
-      const scene = document.getElementById('ar-scene');
+    document.addEventListener('DOMContentLoaded', () => {
+      const startBtn = document.getElementById('startButton');
       const instruction = document.getElementById('instruction');
       const video = document.getElementById('video');
-      const videoEntity = document.getElementById('ar-video');
+      const arVideo = document.getElementById('ar-video');
 
-      // Флаг для предотвращения множественных запусков
-      let isArRunning = false;
+      startBtn.addEventListener('click', async () => {
+        startBtn.style.display = 'none';
+        instruction.textContent = 'Ожидание камеры...';
 
-      startButton.addEventListener('click', function() {
-        if (isArRunning) return;
-        isArRunning = true;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          instruction.textContent = 'Поиск упаковки...';
 
-        startButton.style.display = 'none';
-        instruction.textContent = 'Ищем упаковку...';
+          // Запуск AR
+          const scene = document.querySelector('a-scene');
+          const arSystem = scene.systems['mindar-image-system'];
+          await arSystem.start();
 
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(function(stream) {
-              const arSystem = scene.systems['mindar-image-system'];
-              arSystem.start();
+          // Активация камеры
+          document.querySelector('a-camera').setAttribute('active', 'true');
 
-              document.getElementById('camera').setAttribute('active', 'true');
+          // Обработчики событий
+          const target = document.querySelector('[mindar-image-target]');
+          
+          target.addEventListener('targetFound', () => {
+            instruction.textContent = 'Упаковка найдена!';
+            arVideo.setAttribute('visible', 'true');
+            video.play().catch(e => console.error('Видео ошибка:', e));
+          });
 
-              const target = document.querySelector('[mindar-image-target]');
+          target.addEventListener('targetLost', () => {
+            instruction.textContent = 'Наведите на упаковку';
+            arVideo.setAttribute('visible', 'false');
+            video.pause();
+          });
 
-              target.addEventListener('targetFound', () => {
-                instruction.textContent = 'Упаковка распознана!';
-
-                // Предварительная загрузка
-                video.preload = 'auto';
-                video.load();
-
-                let canPlay = false;
-                video.oncanplay = () => canPlay = true;
-
-                const waitForReady = () => {
-                  if (canPlay && video.readyState >= 2 && video.duration > 0) {
-                    videoEntity.emit('fadein');
-                    video.play().catch(e => {
-                      console.error('Ошибка воспроизведения видео:', e);
-                      instruction.textContent = 'Ошибка видео. Попробуйте снова.';
-                      startButton.style.display = 'block';
-                      isArRunning = false;
-                    });
-                  } else {
-                    setTimeout(waitForReady, 50);
-                  }
-                };
-                waitForReady();
-              });
-
-              target.addEventListener('targetLost', () => {
-                instruction.textContent = 'Наведите камеру на упаковку кофе';
-                videoEntity.setAttribute('visible', 'false');
-                video.pause();
-                video.currentTime = 0;
-              });
-
-            })
-            .catch(error => {
-              console.error('Ошибка доступа к камере:', error);
-              instruction.textContent = 'Не удалось включить камеру. Проверьте разрешения.';
-              startButton.style.display = 'block';
-              startButton.textContent = '🔄 Попробовать снова';
-              isArRunning = false;
-            });
-        } else {
-          instruction.textContent = 'Ваш браузер не поддерживает AR';
-          startButton.style.display = 'block';
-          isArRunning = false;
+        } catch (err) {
+          instruction.textContent = 'Ошибка камеры: ' + err.message;
+          startBtn.style.display = 'block';
         }
       });
-
-      // Мониторинг FPS и состояния
-      let lastFrameTime = 0;
-      const logPerf = (timestamp) => {
-        const fps = Math.round(1000 / (timestamp - lastFrameTime));
-        lastFrameTime = timestamp;
-
-        const arSystem = scene.systems['mindar-image-system'];
-        if (arSystem && arSystem.tracker)
+    });
+  </script>
+</body>
+</html>
