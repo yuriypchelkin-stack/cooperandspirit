@@ -1,47 +1,73 @@
 
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.1/dist/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-aframe.prod.js"></script>
-    <style>
-      body, html { margin: 0; overflow: hidden; }
-      #arButton { position: absolute; top: 10px; left: 10px; z-index: 10; padding: 10px 20px; background: #000; color:#fff; border-radius:8px; }
-    </style>
-  </head>
+<head>
+  <meta charset="utf-8" />
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.4.1/dist/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-aframe.prod.js"></script>
 
-  <body>
-    <button id="arButton">Посмотреть в VR</button>
+  <style>
+    body, html { margin: 0; overflow: hidden; }
+    #startBtn {
+      position:absolute; top:20px; left:20px; z-index:10;
+      padding:12px 22px; background:black; color:white;
+      border-radius:10px; font-size:18px; border:none;
+    }
+  </style>
+</head>
 
-    <a-scene
-      mindar-image="imageTargetSrc: ./assets/targets.mind;"
-      color-space="sRGB"
-      embedded
-      renderer="colorManagement: true, physicallyCorrectLights"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-    >
-      <a-assets>
-        <video id="characterVideo" src="./assets/video.webm" autoplay loop playsinline webkit-playsinline></video>
-      </a-assets>
+<body>
+<button id="startBtn">Посмотреть в VR</button>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+<a-scene
+    mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: false;"
+    embedded
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+>
+  <a-assets>
+    <video id="arVideo" src="./assets/video.webm" preload="auto" playsinline webkit-playsinline></video>
+  </a-assets>
 
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-video
-          src="#characterVideo"
-          position="0 0 0"
-          width="1"
-          height="1.5"
-        ></a-video>
-      </a-entity>
-    </a-scene>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <script>
-      document.getElementById("arButton").onclick = () => {
-        document.querySelector("a-scene").components["mindar-image"].start();
-      };
-    </script>
-  </body>
+  <a-entity id="target" mindar-image-target="targetIndex: 0" visible="false">
+      <a-video id="videoPlane"
+        src="#arVideo"
+        position="0 0 0"
+        rotation="0 0 0"
+        width="1"
+        height="1.5"
+        visible="false">
+      </a-video>
+  </a-entity>
+</a-scene>
+
+<script>
+  const scene = document.querySelector("a-scene");
+  const startBtn = document.getElementById("startBtn");
+  const video = document.getElementById("arVideo");
+  const videoPlane = document.getElementById("videoPlane");
+  const target = document.getElementById("target");
+
+  startBtn.onclick = async () => {
+    startBtn.style.display = "none";
+    await scene.components["mindar-image"].start(); 
+  };
+
+  target.addEventListener("targetFound", () => {
+    videoPlane.setAttribute("visible", "true");
+    video.currentTime = 0;
+    video.play();
+  });
+
+  target.addEventListener("targetLost", () => {
+    videoPlane.setAttribute("visible", "false");
+    video.pause();
+  });
+</script>
+
+</body>
 </html>

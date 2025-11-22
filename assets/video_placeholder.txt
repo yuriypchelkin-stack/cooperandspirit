@@ -1,1 +1,1 @@
-Place your video file here named 'video.webm'
+Place your transparent video here named video.webm
