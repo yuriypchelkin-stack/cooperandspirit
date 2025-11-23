@@ -7,6 +7,9 @@
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+
+
+  
   <style>
     * {
       margin: 0;
@@ -110,6 +113,12 @@
   </a-scene>
 
   <script>
+
+
+const player = document.getElementById('video');
+player.src = supportsHEVCAlpha() ? 'assets/output.mov' : 'assets/output.webm';
+
+    
     document.addEventListener('DOMContentLoaded', function() {
       const startButton = document.getElementById('startButton');
       const scene = document.getElementById('ar-scene');
