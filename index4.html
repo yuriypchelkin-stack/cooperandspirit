@@ -3,43 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Кофе - Custom Shader</title>
+  <title>AR Кофе - Canvas Solution</title>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
-  
-  <!-- Кастомный шейдер для прозрачности -->
-  <script>
-    AFRAME.registerShader('transparent-video', {
-      schema: {
-        src: { type: 'map', is: 'uniform' },
-        transparent: { default: true }
-      },
-
-      vertexShader: `
-        varying vec2 vUV;
-        void main() {
-          vUV = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        uniform sampler2D src;
-        varying vec2 vUV;
-        
-        void main() {
-          vec4 color = texture2D(src, vUV);
-          // Если альфа канал меньше порога - отбрасываем пиксель
-          if (color.a < 0.1) {
-            discard;
-          }
-          gl_FragColor = color;
-        }
-      `
-    });
-  </script>
-
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { margin: 0; overflow: hidden; width: 100vw; height: 100vh; position: fixed; }
@@ -49,40 +16,89 @@
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR_gl</button>
+  <button id="startButton">🚀 Запустить AR canvas</button>
+
+  <!-- Скрытый canvas для обработки видео -->
+  <canvas id="videoCanvas" style="display: none;"></canvas>
 
   <a-scene 
       mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false;"
       id="ar-scene"
       embedded 
+      renderer="colorManagement: true; alpha: true;"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
     
     <a-assets>
-      <video id="video" src="assets/video.webm" preload="auto" loop playsinline webkit-playsinline></video>
+      <video id="sourceVideo" src="assets/video.webm" preload="auto" loop playsinline webkit-playsinline></video>
+      <canvas id="processedVideo" width="1920" height="1080"></canvas>
     </a-assets>
 
     <a-camera position="0 0 0" look-controls="enabled: false" active="false" id="camera"></a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
       <a-entity position="0 0.8 0" rotation="0 0 0">
+        <!-- Используем plane с canvas текстурой -->
         <a-plane
+            src="#processedVideo"
             width="1.6" 
             height="0.9"
             position="0 0 0"
+            transparent="true"
             visible="false"
             id="ar-video"
-            material="shader: transparent-video; src: #video">
+            material="shader: flat; transparent: true;">
         </a-plane>
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
+    class VideoProcessor {
+      constructor() {
+        this.sourceVideo = document.getElementById('sourceVideo');
+        this.processedCanvas = document.getElementById('processedVideo');
+        this.ctx = this.processedCanvas.getContext('2d');
+        this.isProcessing = false;
+      }
+
+      startProcessing() {
+        if (this.isProcessing) return;
+        
+        this.isProcessing = true;
+        this.processFrame();
+      }
+
+      stopProcessing() {
+        this.isProcessing = false;
+      }
+
+      processFrame() {
+        if (!this.isProcessing) return;
+
+        // Очищаем canvas
+        this.ctx.clearRect(0, 0, this.processedCanvas.width, this.processedCanvas.height);
+        
+        // Рисуем видео на canvas
+        if (this.sourceVideo.videoWidth > 0) {
+          this.ctx.drawImage(
+            this.sourceVideo, 
+            0, 0, 
+            this.processedCanvas.width, 
+            this.processedCanvas.height
+          );
+        }
+
+        // Продолжаем обработку
+        requestAnimationFrame(() => this.processFrame());
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       const startButton = document.getElementById('startButton');
       const scene = document.getElementById('ar-scene');
       const instruction = document.getElementById('instruction');
+      const videoProcessor = new VideoProcessor();
       
       startButton.addEventListener('click', function() {
         startButton.style.display = 'none';
@@ -95,12 +111,15 @@
               arSystem.start();
               document.getElementById('camera').setAttribute('active', 'true');
               
+              // Запускаем обработку видео
+              videoProcessor.startProcessing();
+              
               const target = document.querySelector('[mindar-image-target]');
               target.addEventListener('targetFound', event => {
                 instruction.textContent = 'Упаковка распознана!';
                 document.getElementById('ar-video').setAttribute('visible', 'true');
                 
-                const video = document.getElementById('video');
+                const video = document.getElementById('sourceVideo');
                 video.play().catch(e => console.log('Ошибка видео:', e));
               });
               
