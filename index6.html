@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AR Кофе - MindAR</title>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
 
   <!-- Шейдер true-alpha - использует встроенный альфа-канал видео -->
@@ -94,8 +94,17 @@
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR shader rednewww</button>
-
+  <button id="startButton">🚀 Запустить AR shader 5555</button>
+<a-plane
+  id="ar-video"
+  width="1.6"
+  height="0.9"
+  position="0 0 0"
+  visible="false"
+  material="shader: true-alpha; src: #video-source; opacity: 1.0; transparent: true"
+  force-video-update>
+</a-plane>
+  
   <a-scene 
       mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
       id="ar-scene"
@@ -105,7 +114,7 @@
       device-orientation-permission-ui="enabled: false">
     
     <a-assets>
-      <video id="video-source" src="assets/video.webm" preload="auto" loop playsinline webkit-playsinline></video>
+      <video id="video-source" src="assets/video.webm" preload="auto" loop playsinline webkit-playsinline muted></video>
     </a-assets>
 
     <a-camera 
@@ -125,7 +134,7 @@
             height="0.9"
             position="0 0 0"
             visible="false"
-            material="shader: true-alpha; src: #video-source; opacity: 1.0">
+          material="shader: true-alpha; src: #video-source; opacity: 1.0; transparent: true">
         </a-plane>
       </a-entity>
     </a-entity>
