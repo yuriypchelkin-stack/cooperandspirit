@@ -3,129 +3,205 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Кофе - Canvas Solution</title>
+  <title>AR Кофе - MindAR</title>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { margin: 0; overflow: hidden; width: 100vw; height: 100vh; position: fixed; }
-    #instruction { position: absolute; top: 0; left: 0; width: 100%; text-align: center; color: white; font-family: Arial; z-index: 1000; background: rgba(0,0,0,0.7); padding: 15px; pointer-events: none; }
-    #startButton { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: #8B4513; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 25px; cursor: pointer; z-index: 1001; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+    }
+    #instruction { 
+      position: absolute; 
+      top: 0;
+      left: 0; 
+      width: 100%; 
+      text-align: center; 
+      color: white; 
+      font-family: Arial; 
+      z-index: 1000; 
+      background: rgba(0,0,0,0.7); 
+      padding: 15px;
+      pointer-events: none;
+    }
+    #startButton {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #8B4513;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 25px;
+      cursor: pointer;
+      z-index: 1001;
+    }
+    .a-canvas {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
   </style>
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR canvas</button>
-
-  <!-- Скрытый canvas для обработки видео -->
-  <canvas id="videoCanvas" style="display: none;"></canvas>
+  <button id="startButton">🚀 Запустить AR-new</button>
 
   <a-scene 
-      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false;"
+      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
       id="ar-scene"
+      color-space="sRGB"
       embedded 
-      renderer="colorManagement: true; alpha: true;"
+      renderer="colorManagement: true; alpha: true; premultipliedAlpha: true; antialias: true;"
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
     
     <a-assets>
-      <video id="sourceVideo" src="assets/video.webm" preload="auto" loop playsinline webkit-playsinline></video>
-      <canvas id="processedVideo" width="1920" height="1080"></canvas>
+      <!-- Два формата видео для кроссплатформенной поддержки -->
+      <video id="video-webm" preload="auto" loop playsinline webkit-playsinline>
+        <source src="assets/video.webm" type="video/webm">
+      </video>
+      <video id="video-mov" preload="auto" loop playsinline webkit-playsinline>
+        <source src="assets/video.mov" type="video/quicktime">
+      </video>
     </a-assets>
 
-    <a-camera position="0 0 0" look-controls="enabled: false" active="false" id="camera"></a-camera>
+    <a-camera 
+        position="0 0 0" 
+        look-controls="enabled: false" 
+        cursor="rayOrigin: mouse;"
+        active="false"
+        id="camera">
+    </a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
       <a-entity position="0 0.8 0" rotation="0 0 0">
-        <!-- Используем plane с canvas текстурой -->
-        <a-plane
-            src="#processedVideo"
+        <!-- Видео элемент, источник которого будет выбран динамически -->
+        <a-video 
+            id="ar-video"
             width="1.6" 
             height="0.9"
             position="0 0 0"
-            transparent="true"
+            autoplay="true"
             visible="false"
-            id="ar-video"
-            material="shader: flat; transparent: true;">
-        </a-plane>
+            material="transparent: true; opacity: 1.0;">
+        </a-video>
       </a-entity>
     </a-entity>
   </a-scene>
 
   <script>
-    class VideoProcessor {
-      constructor() {
-        this.sourceVideo = document.getElementById('sourceVideo');
-        this.processedCanvas = document.getElementById('processedVideo');
-        this.ctx = this.processedCanvas.getContext('2d');
-        this.isProcessing = false;
+    // Функция для определения поддержки форматов видео
+    function getSupportedVideoFormat() {
+      const video = document.createElement('video');
+      
+      // Проверяем поддержку WebM с альфа-каналом
+      const webmSupported = video.canPlayType('video/webm; codecs="vp9"') === 'probably';
+      
+      // Проверяем поддержку HEVC (MOV) с альфа-каналом
+      const hevcSupported = video.canPlayType('video/mp4; codecs="hvc1"') === 'probably' || 
+                           video.canPlayType('video/quicktime; codecs="hvc1"') === 'probably';
+      
+      // Определяем браузер и платформу
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isMac = /Macintosh/.test(navigator.userAgent) && !/Mobile/.test(navigator.userAgent);
+      
+      console.log('WebM поддержка:', webmSupported);
+      console.log('HEVC поддержка:', hevcSupported);
+      console.log('Safari:', isSafari, 'iOS:', isIOS, 'Mac:', isMac);
+      
+      // Приоритет для Safari/iOS - HEVC, для остальных - WebM
+      if ((isSafari || isIOS || isMac) && hevcSupported) {
+        return 'mov';
+      } else if (webmSupported) {
+        return 'webm';
+      } else {
+        // Fallback - пробуем MOV если WebM не поддерживается
+        return 'mov';
       }
+    }
 
-      startProcessing() {
-        if (this.isProcessing) return;
-        
-        this.isProcessing = true;
-        this.processFrame();
-      }
-
-      stopProcessing() {
-        this.isProcessing = false;
-      }
-
-      processFrame() {
-        if (!this.isProcessing) return;
-
-        // Очищаем canvas
-        this.ctx.clearRect(0, 0, this.processedCanvas.width, this.processedCanvas.height);
-        
-        // Рисуем видео на canvas
-        if (this.sourceVideo.videoWidth > 0) {
-          this.ctx.drawImage(
-            this.sourceVideo, 
-            0, 0, 
-            this.processedCanvas.width, 
-            this.processedCanvas.height
-          );
-        }
-
-        // Продолжаем обработку
-        requestAnimationFrame(() => this.processFrame());
-      }
+    // Функция для установки правильного видео источника
+    function setupVideoSource() {
+      const format = getSupportedVideoFormat();
+      const arVideo = document.getElementById('ar-video');
+      const videoElement = format === 'mov' ? 
+        document.getElementById('video-mov') : 
+        document.getElementById('video-webm');
+      
+      console.log('Выбран формат:', format);
+      
+      // Устанавливаем источник для AR видео
+      arVideo.setAttribute('src', '#' + videoElement.id);
+      
+      return videoElement;
     }
 
     document.addEventListener('DOMContentLoaded', function() {
       const startButton = document.getElementById('startButton');
       const scene = document.getElementById('ar-scene');
       const instruction = document.getElementById('instruction');
-      const videoProcessor = new VideoProcessor();
+      
+      // Настраиваем видео источник при загрузке
+      const activeVideoElement = setupVideoSource();
       
       startButton.addEventListener('click', function() {
+        // Скрываем кнопку
         startButton.style.display = 'none';
         instruction.textContent = 'Ищем упаковку...';
         
+        // Запрашиваем доступ к камере
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           navigator.mediaDevices.getUserMedia({ video: true })
             .then(function(stream) {
+              // Запускаем AR сцену
               const arSystem = scene.systems["mindar-image-system"];
               arSystem.start();
+              
+              // Активируем камеру
               document.getElementById('camera').setAttribute('active', 'true');
               
-              // Запускаем обработку видео
-              videoProcessor.startProcessing();
-              
+              // Обработчики для маркера
               const target = document.querySelector('[mindar-image-target]');
               target.addEventListener('targetFound', event => {
+                console.log('Цель найдена!');
                 instruction.textContent = 'Упаковка распознана!';
                 document.getElementById('ar-video').setAttribute('visible', 'true');
                 
-                const video = document.getElementById('sourceVideo');
-                video.play().catch(e => console.log('Ошибка видео:', e));
+                // Запускаем выбранное видео
+                activeVideoElement.play().catch(e => {
+                  console.log('Ошибка воспроизведения видео:', e);
+                  // Пробуем альтернативное видео если основное не работает
+                  const alternativeFormat = getSupportedVideoFormat() === 'mov' ? 'webm' : 'mov';
+                  const alternativeVideo = document.getElementById(`video-${alternativeFormat}`);
+                  document.getElementById('ar-video').setAttribute('src', `#video-${alternativeFormat}`);
+                  alternativeVideo.play().catch(e2 => console.log('Ошибка альтернативного видео:', e2));
+                });
               });
               
               target.addEventListener('targetLost', event => {
+                console.log('Цель потеряна');
                 instruction.textContent = 'Наведите камеру на упаковку кофе';
                 document.getElementById('ar-video').setAttribute('visible', 'false');
+                
+                // Останавливаем видео
+                activeVideoElement.pause();
+                activeVideoElement.currentTime = 0;
               });
             })
             .catch(function(error) {
