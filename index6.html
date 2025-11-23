@@ -3,81 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Кофе - MindAR</title>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
-  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
-
-  <!-- Шейдер для правильной работы с альфа-каналом видео -->
-  <script>
-    AFRAME.registerShader('video-alpha', {
-      schema: {
-        src: { type: 'map', is: 'uniform' },
-        opacity: { type: 'number', is: 'uniform', default: 1 }
-      },
-
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        uniform sampler2D src;
-        uniform float opacity;
-        varying vec2 vUv;
-        
-        void main() {
-          vec4 color = texture2D(src, vUv);
-          
-          // Используем альфа-канал видео напрямую
-          if (color.a < 0.01) {
-            discard;
-          }
-          
-          gl_FragColor = vec4(color.rgb, color.a * opacity);
-        }
-      `
-    });
-
-    // Альтернативный шейдер для видео с предумноженным альфа-каналом
-    AFRAME.registerShader('premultiplied-alpha', {
-      schema: {
-        src: { type: 'map', is: 'uniform' },
-        opacity: { type: 'number', is: 'uniform', default: 1 }
-      },
-
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        uniform sampler2D src;
-        uniform float opacity;
-        varying vec2 vUv;
-        
-        void main() {
-          vec4 color = texture2D(src, vUv);
-          
-          // Для видео с предумноженным альфа-каналом
-          if (color.a < 0.01) {
-            discard;
-          }
-          
-          // Восстанавливаем цвета из предумноженного альфа
-          vec3 finalColor = color.rgb / color.a;
-          gl_FragColor = vec4(finalColor, color.a * opacity);
-        }
-      `
-    });
-  </script>
-
+  <title>AR Кофе - Three.js + MindAR</title>
   <style>
     * {
       margin: 0;
@@ -90,7 +16,8 @@
       width: 100vw;
       height: 100vh;
       position: fixed;
-      background: transparent;
+      background: #000;
+      font-family: Arial, sans-serif;
     }
     #instruction { 
       position: absolute; 
@@ -99,7 +26,6 @@
       width: 100%; 
       text-align: center; 
       color: white; 
-      font-family: Arial; 
       z-index: 1000; 
       background: rgba(0,0,0,0.7); 
       padding: 15px;
@@ -119,176 +45,246 @@
       cursor: pointer;
       z-index: 1001;
     }
-    .a-canvas {
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+    #container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
     }
   </style>
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR сгыещт</button>
+  <button id="startButton">🚀 Запустить AR three</button>
+  <div id="container"></div>
 
-  <a-scene 
-      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
-      id="ar-scene"
-      embedded 
-      renderer="colorManagement: true; alpha: true; premultipliedAlpha: false;"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false">
-    
-    <a-assets>
-      <video id="video-source" src="assets/video.mov" preload="auto" loop playsinline webkit-playsinline></video>
-    </a-assets>
-
-    <a-camera 
-        position="0 0 0" 
-        look-controls="enabled: false" 
-        cursor="rayOrigin: mouse;"
-        active="false"
-        id="camera">
-    </a-camera>
-
-    <a-entity mindar-image-target="targetIndex: 0">
-      <a-entity position="0 0.8 0" rotation="0 0 0">
-        <!-- Тестируем оба шейдера -->
-        <a-plane custom-video-alpha
-            id="ar-video"
-            width="1.6" 
-            height="0.9"
-            position="0 0 0"
-            visible="false"
-            material="shader: video-alpha; src: #video-source; opacity: 1.0">
-        </a-plane>
-      </a-entity>
-    </a-entity>
-  </a-scene>
+  <!-- Подключаем библиотеки -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-three.prod.js"></script>
 
   <script>
-    // Функция для проверки и настройки видео
-    function setupVideo() {
-      const video = document.getElementById('video-source');
-      const arVideo = document.getElementById('ar-video');
-      
-      video.addEventListener('loadeddata', function() {
-        console.log('Видео загружено:', video.videoWidth, 'x', video.videoHeight);
-        
-        // Создаем canvas для анализа видео
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Анализируем первый кадр
-        setTimeout(() => {
-          ctx.drawImage(video, 0, 0);
-          const imageData = ctx.getImageData(0, 0, 1, 1);
-          const alpha = imageData.data[3];
-          
-          console.log('Альфа-канал первого пикселя:', alpha);
-          
-          // Автоматически выбираем шейдер на основе анализа
-          if (alpha < 255) {
-            console.log('Видео имеет альфа-канал, используем video-alpha шейдер');
-            arVideo.setAttribute('material', 'shader', 'video-alpha');
-          } else {
-            console.log('Видео не имеет альфа-канала, пробуем premultiplied-alpha');
-            arVideo.setAttribute('material', 'shader', 'premultiplied-alpha');
-          }
-        }, 100);
+    // Основные переменные
+    let scene, camera, renderer, controls;
+    let mindarThree, mindarSystem;
+    let videoMesh = null;
+    let videoTexture = null;
+    let videoElement = null;
+
+    // Инициализация Three.js сцены
+    function initThreeJS() {
+      // Создаем сцену
+      scene = new THREE.Scene();
+      scene.background = null;
+
+      // Создаем камеру (параметры будут обновлены MindAR)
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+      // Создаем рендерер
+      renderer = new THREE.WebGLRenderer({ 
+        alpha: true,
+        antialias: true
       });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devindow.devicePixelRatio);
+      renderer.domElement.style.position = 'absolute';
+      renderer.domElement.style.top = '0';
+      renderer.domElement.style.left = '0';
+      document.getElementById('container').appendChild(renderer.domElement);
+
+      // Настройка рендерера для прозрачности
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      renderer.physicallyCorrectLights = true;
     }
 
+    // Создание видео плоскости с прозрачностью
+    function createVideoPlane() {
+      // Создаем видео элемент
+      videoElement = document.createElement('video');
+      videoElement.src = 'assets/video.mov';
+      videoElement.loop = true;
+      videoElement.muted = true;
+      videoElement.playsInline = true;
+      videoElement.preload = 'auto';
+
+      // Создаем видео текстуру
+      videoTexture = new THREE.VideoTexture(videoElement);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBAFormat;
+
+      // Создаем кастомный шейдерный материал для прозрачности
+      const videoMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          map: { value: videoTexture },
+          opacity: { value: 1.0 }
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D map;
+          uniform float opacity;
+          varying vec2 vUv;
+          
+          void main() {
+            vec4 color = texture2D(map, vUv);
+            
+            // Используем альфа-канал видео
+            if (color.a < 0.01) {
+              discard;
+            }
+            
+            gl_FragColor = vec4(color.rgb, color.a * opacity);
+          }
+        `,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+
+      // Создаем геометрию плоскости
+      const geometry = new THREE.PlaneGeometry(1.6, 0.9);
+      
+      // Создаем mesh
+      videoMesh = new THREE.Mesh(geometry, videoMaterial);
+      videoMesh.position.set(0, 0.8, 0);
+      videoMesh.rotation.x = -Math.PI / 2; // Поворачиваем для горизонтального отображения
+      videoMesh.visible = false;
+
+      return videoMesh;
+    }
+
+    // Инициализация MindAR
+    async function initMindAR() {
+      try {
+        // Создаем экземпляр MindAR Three
+        mindarThree = new MindARThree({
+          container: document.getElementById('container'),
+          imageTargetSrc: 'assets/targets.mind',
+          maxTrack: 1,
+          filterMinCF: 0.0001,
+          filterBeta: 0.001
+        });
+
+        // Добавляем видео плоскость в сцену MindAR
+        const anchor = mindarThree.addAnchor(0);
+        anchor.group.add(createVideoPlane());
+
+        // Запускаем MindAR
+        await mindarThree.start();
+        mindarSystem = mindarThree.system;
+
+        // Получаем камеру и рендерер из MindAR
+        scene = mindarThree.scene;
+        camera = mindarThree.camera;
+        renderer = mindarThree.renderer;
+
+        // Обработчики событий для anchor
+        anchor.onTargetFound = () => {
+          console.log('Цель найдена!');
+          document.getElementById('instruction').textContent = 'Упаковка распознана!';
+          if (videoMesh) videoMesh.visible = true;
+          
+          // Запускаем видео
+          if (videoElement) {
+            videoElement.play().catch(e => console.log('Ошибка видео:', e));
+          }
+        };
+
+        anchor.onTargetLost = () => {
+          console.log('Цель потеряна');
+          document.getElementById('instruction').textContent = 'Наведите камеру на упаковку кофе';
+          if (videoMesh) videoMesh.visible = false;
+          
+          // Останавливаем видео
+          if (videoElement) {
+            videoElement.pause();
+            videoElement.currentTime = 0;
+          }
+        };
+
+        // Запускаем рендер цикл
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
+        });
+
+        console.log('MindAR успешно инициализирован');
+
+      } catch (error) {
+        console.error('Ошибка инициализации MindAR:', error);
+        document.getElementById('instruction').textContent = 'Ошибка загрузки AR';
+      }
+    }
+
+    // Запрос доступа к камере и запуск AR
+    async function startAR() {
+      const instruction = document.getElementById('instruction');
+      const startButton = document.getElementById('startButton');
+
+      try {
+        instruction.textContent = 'Запрашиваем доступ к камере...';
+        
+        // Запрашиваем доступ к камере
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
+
+        // Скрываем кнопку
+        startButton.style.display = 'none';
+        instruction.textContent = 'Загружаем AR...';
+
+        // Инициализируем Three.js
+        initThreeJS();
+
+        // Инициализируем MindAR
+        await initMindAR();
+
+        instruction.textContent = 'Наведите камеру на упаковку кофе';
+
+      } catch (error) {
+        console.error('Ошибка доступа к камере:', error);
+        instruction.textContent = 'Ошибка доступа к камере. Разрешите доступ к камере.';
+        startButton.style.display = 'block';
+        startButton.textContent = '🔄 Попробовать снова';
+      }
+    }
+
+    // Обработчики событий
     document.addEventListener('DOMContentLoaded', function() {
       const startButton = document.getElementById('startButton');
-      const scene = document.getElementById('ar-scene');
-      const instruction = document.getElementById('instruction');
       
-      // Настраиваем видео при загрузке
-      setupVideo();
-      
-      startButton.addEventListener('click', function() {
-        startButton.style.display = 'none';
-        instruction.textContent = 'Ищем упаковку...';
-        
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-              const arSystem = scene.systems["mindar-image-system"];
-              arSystem.start();
-              document.getElementById('camera').setAttribute('active', 'true');
-              
-              const target = document.querySelector('[mindar-image-target]');
-              target.addEventListener('targetFound', event => {
-                console.log('Цель найдена!');
-                instruction.textContent = 'Упаковка распознана!';
-                document.getElementById('ar-video').setAttribute('visible', 'true');
-                
-                const video = document.getElementById('video-source');
-                video.play().catch(e => console.log('Ошибка видео:', e));
-              });
-              
-              target.addEventListener('targetLost', event => {
-                console.log('Цель потеряна');
-                instruction.textContent = 'Наведите камеру на упаковку кофе';
-                document.getElementById('ar-video').setAttribute('visible', 'false');
-              });
-            })
-            .catch(function(error) {
-              console.error('Ошибка камеры:', error);
-              instruction.textContent = 'Ошибка доступа к камере';
-              startButton.style.display = 'block';
-              startButton.textContent = '🔄 Попробовать снова';
-            });
-        } else {
-          instruction.textContent = 'Ваш браузер не поддерживает AR';
+      startButton.addEventListener('click', startAR);
+
+      // Обработка изменения размера окна
+      window.addEventListener('resize', () => {
+        if (camera && renderer) {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
         }
       });
     });
-  </script>
 
-<script>
-// Добавьте этот код если предыдущие решения не работают
-AFRAME.registerComponent('custom-video-alpha', {
-  init: function() {
-    const video = document.getElementById('video-source');
-    const texture = new THREE.VideoTexture(video);
-    
-    // Создаем кастомный материал
-    const material = new THREE.ShaderMaterial({
-      uniforms: {
-        map: { value: texture }
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform sampler2D map;
-        varying vec2 vUv;
-        
-        void main() {
-          vec4 color = texture2D(map, vUv);
-          if (color.a < 0.01) discard;
-          gl_FragColor = color;
-        }
-      `,
-      transparent: true
+    // Очистка при закрытии страницы
+    window.addEventListener('beforeunload', () => {
+      if (mindarSystem) {
+        mindarSystem.stop();
+      }
+      if (videoElement) {
+        videoElement.pause();
+        videoElement.src = '';
+      }
     });
-    
-    this.el.getObject3D('mesh').material = material;
-  }
-});
-
-// Использование в a-plane:
-// <a-plane custom-video-alpha ...></a-plane>
-</script>
-  
+  </script>
 </body>
 </html>
