@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Кофе - MindAR</title>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      background: transparent;
+    }
+    #instruction { 
+      position: absolute; 
+      top: 0;
+      left: 0; 
+      width: 100%; 
+      text-align: center; 
+      color: white; 
+      font-family: Arial; 
+      z-index: 1000; 
+      background: rgba(0,0,0,0.7); 
+      padding: 15px;
+      pointer-events: none;
+    }
+    #startButton {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #8B4513;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 25px;
+      cursor: pointer;
+      z-index: 1001;
+    }
+    .a-canvas {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="instruction">Наведите камеру на упаковку кофе</div>
+  <button id="startButton">🚀 Запустить AR</button>
+
+  <a-scene 
+      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
+      id="ar-scene"
+      embedded 
+      renderer="colorManagement: true; alpha: true; transparent: true;"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+    
+    <a-assets>
+      <video id="video" src="assets/video.webm" preload="auto" loop playsinline webkit-playsinline></video>
+    </a-assets>
+    <p>&lt;!DOCTYPE html&gt;<br>
+      &lt;html&gt;<br>
+      &lt;head&gt;<br>
+  &lt;meta charset=&quot;utf-8&quot;&gt;<br>
+  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;<br>
+  &lt;title&gt;AR Кофе - MindAR&lt;/title&gt;<br>
+  &lt;script src=&quot;https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js&quot;&gt;&lt;/script&gt;<br>
+  &lt;script src=&quot;https://aframe.io/releases/1.4.0/aframe.min.js&quot;&gt;&lt;/script&gt;<br>
+  &lt;script src=&quot;https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js&quot;&gt;&lt;/script&gt;</p>
+    <p> &lt;!-- Кастомный шейдер для удаления черного фона --&gt;<br>
+  &lt;script&gt;<br>
+      AFRAME.registerShader('alpha-video', {<br>
+      schema: {<br>
+      src: { type: 'map', is: 'uniform' },<br>
+      opacity: { type: 'number', is: 'uniform', default: 1 }<br>
+      },</p>
+    <p> vertexShader: `<br>
+      varying vec2 vUv;<br>
+      void main() {<br>
+      vUv = uv;<br>
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);<br>
+      }<br>
+      `,</p>
+    <p> fragmentShader: `<br>
+      uniform sampler2D src;<br>
+      uniform float opacity;<br>
+      varying vec2 vUv;<br>
+  <br>
+      void main() {<br>
+      vec4 texel = texture2D(src, vUv);<br>
+  <br>
+      // Удаляем черные и темные пиксели<br>
+      float brightness = (texel.r + texel.g + texel.b) / 3.0;<br>
+  <br>
+      // Если пиксель слишком темный - делаем его полностью прозрачным<br>
+      if (brightness &lt; 0.1) {<br>
+      discard;<br>
+      }<br>
+  <br>
+      // Сохраняем оригинальные цвета для остальных пикселей<br>
+      gl_FragColor = vec4(texel.rgb, opacity);<br>
+      }<br>
+      `<br>
+      });</p>
+    <p> // Альтернативный шейдер для более агрессивного удаления фона<br>
+      AFRAME.registerShader('chroma-key', {<br>
+      schema: {<br>
+      src: { type: 'map', is: 'uniform' },<br>
+      opacity: { type: 'number', is: 'uniform', default: 1 },<br>
+      threshold: { type: 'number', is: 'uniform', default: 0.1 }<br>
+      },</p>
+    <p> vertexShader: `<br>
+      varying vec2 vUv;<br>
+      void main() {<br>
+      vUv = uv;<br>
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);<br>
+      }<br>
+      `,</p>
+    <p> fragmentShader: `<br>
+      uniform sampler2D src;<br>
+      uniform float opacity;<br>
+      uniform float threshold;<br>
+      varying vec2 vUv;<br>
+  <br>
+      void main() {<br>
+      vec4 color = texture2D(src, vUv);<br>
+  <br>
+      // Вычисляем яркость пикселя<br>
+      float luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;<br>
+  <br>
+      // Удаляем темные пиксели (черный фон)<br>
+      if (luminance &lt; threshold) {<br>
+      discard;<br>
+      }<br>
+  <br>
+      // Убираем очень темные оттенки (почти черные)<br>
+      if (color.r &lt; 0.15 &amp;&amp; color.g &lt; 0.15 &amp;&amp; color.b &lt; 0.15) {<br>
+      discard;<br>
+      }<br>
+  <br>
+      gl_FragColor = vec4(color.rgb, opacity);<br>
+      }<br>
+      `<br>
+      });<br>
+  &lt;/script&gt;</p>
+    <p> &lt;style&gt;<br>
+      * {<br>
+      margin: 0;<br>
+      padding: 0;<br>
+      box-sizing: border-box;<br>
+      }<br>
+      body { <br>
+      margin: 0; <br>
+      overflow: hidden; <br>
+      width: 100vw;<br>
+      height: 100vh;<br>
+      position: fixed;<br>
+      }<br>
+      #instruction { <br>
+      position: absolute; <br>
+      top: 0;<br>
+      left: 0; <br>
+      width: 100%; <br>
+      text-align: center; <br>
+      color: white; <br>
+      font-family: Arial; <br>
+      z-index: 1000; <br>
+      background: rgba(0,0,0,0.7); <br>
+      padding: 15px;<br>
+      pointer-events: none;<br>
+      }<br>
+      #startButton {<br>
+      position: absolute;<br>
+      bottom: 30px;<br>
+      left: 50%;<br>
+      transform: translateX(-50%);<br>
+      background: #8B4513;<br>
+      color: white;<br>
+      border: none;<br>
+      padding: 15px 30px;<br>
+      font-size: 18px;<br>
+      border-radius: 25px;<br>
+      cursor: pointer;<br>
+      z-index: 1001;<br>
+      }<br>
+      .a-canvas {<br>
+      position: absolute !important;<br>
+      top: 0 !important;<br>
+      left: 0 !important;<br>
+      width: 100% !important;<br>
+      height: 100% !important;<br>
+      }<br>
+  &lt;/style&gt;<br>
+  &lt;/head&gt;<br>
+  &lt;body&gt;<br>
+  &lt;div id=&quot;instruction&quot;&gt;Наведите камеру на упаковку кофе&lt;/div&gt;<br>
+  &lt;button id=&quot;startButton&quot;&gt;🚀 Запустить AR&lt;/button&gt;</p>
+    <p> &lt;a-scene <br>
+      mindar-image=&quot;imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001&quot;<br>
+      id=&quot;ar-scene&quot;<br>
+      embedded <br>
+      renderer=&quot;colorManagement: true; alpha: true; premultipliedAlpha: false;&quot;<br>
+      vr-mode-ui=&quot;enabled: false&quot;<br>
+      device-orientation-permission-ui=&quot;enabled: false&quot;&gt;<br>
+  <br>
+  &lt;a-assets&gt;<br>
+  &lt;!-- Используем только один формат для простоты --&gt;<br>
+  &lt;video id=&quot;video-source&quot; src=&quot;assets/video.mov&quot; preload=&quot;auto&quot; loop playsinline webkit-playsinline&gt;&lt;/video&gt;<br>
+  &lt;/a-assets&gt;</p>
+    <p> &lt;a-camera <br>
+      position=&quot;0 0 0&quot; <br>
+      look-controls=&quot;enabled: false&quot; <br>
+      cursor=&quot;rayOrigin: mouse;&quot;<br>
+      active=&quot;false&quot;<br>
+      id=&quot;camera&quot;&gt;<br>
+  &lt;/a-camera&gt;</p>
+    <p> &lt;a-entity mindar-image-target=&quot;targetIndex: 0&quot;&gt;<br>
+  &lt;a-entity position=&quot;0 0.8 0&quot; rotation=&quot;0 0 0&quot;&gt;<br>
+  &lt;!-- Используем plane с кастомным шейдером вместо a-video --&gt;<br>
+  &lt;a-plane<br>
+      id=&quot;ar-video&quot;<br>
+      width=&quot;1.6&quot; <br>
+      height=&quot;0.9&quot;<br>
+      position=&quot;0 0 0&quot;<br>
+      visible=&quot;false&quot;<br>
+      material=&quot;shader: chroma-key; src: #video-source; opacity: 1.0; threshold: 0.15&quot;&gt;<br>
+  &lt;/a-plane&gt;<br>
+  &lt;/a-entity&gt;<br>
+  &lt;/a-entity&gt;<br>
+  &lt;/a-scene&gt;</p>
+    <p> &lt;script&gt;<br>
+      // Функция для проверки и отладки видео<br>
+      function debugVideo() {<br>
+      const video = document.getElementById('video-source');<br>
+      const canvas = document.createElement('canvas');<br>
+      const ctx = canvas.getContext('2d');<br>
+  <br>
+      video.addEventListener('loadeddata', function() {<br>
+      console.log('Видео загружено:', video.videoWidth, 'x', video.videoHeight);<br>
+  <br>
+      // Проверяем первые несколько кадров<br>
+      setTimeout(() =&gt; {<br>
+      canvas.width = video.videoWidth;<br>
+      canvas.height = video.videoHeight;<br>
+      ctx.drawImage(video, 0, 0);<br>
+  <br>
+      // Проверяем разные точки на прозрачность<br>
+      const testPoints = [<br>
+      [10, 10], [100, 100], [video.videoWidth-10, 10]<br>
+      ];<br>
+  <br>
+      testPoints.forEach(([x, y]) =&gt; {<br>
+      const pixel = ctx.getImageData(x, y, 1, 1).data;<br>
+      console.log(`Пиксель [${x},${y}]: R=${pixel[0]} G=${pixel[1]} B=${pixel[2]} A=${pixel[3]}`);<br>
+      });<br>
+      }, 100);<br>
+      });<br>
+      }</p>
+    <p> document.addEventListener('DOMContentLoaded', function() {<br>
+      const startButton = document.getElementById('startButton');<br>
+      const scene = document.getElementById('ar-scene');<br>
+      const instruction = document.getElementById('instruction');<br>
+  <br>
+      // Запускаем отладку видео<br>
+      debugVideo();<br>
+  <br>
+      startButton.addEventListener('click', function() {<br>
+      startButton.style.display = 'none';<br>
+      instruction.textContent = 'Ищем упаковку...';<br>
+  <br>
+      if (navigator.mediaDevices &amp;&amp; navigator.mediaDevices.getUserMedia) {<br>
+      navigator.mediaDevices.getUserMedia({ video: true })<br>
+      .then(function(stream) {<br>
+      const arSystem = scene.systems[&quot;mindar-image-system&quot;];<br>
+      arSystem.start();<br>
+      document.getElementById('camera').setAttribute('active', 'true');<br>
+  <br>
+      const target = document.querySelector('[mindar-image-target]');<br>
+      target.addEventListener('targetFound', event =&gt; {<br>
+      console.log('Цель найдена!');<br>
+      instruction.textContent = 'Упаковка распознана!';<br>
+      document.getElementById('ar-video').setAttribute('visible', 'true');<br>
+  <br>
+      const video = document.getElementById('video-source');<br>
+      video.play().catch(e =&gt; console.log('Ошибка видео:', e));<br>
+      });<br>
+  <br>
+      target.addEventListener('targetLost', event =&gt; {<br>
+      console.log('Цель потеряна');<br>
+      instruction.textContent = 'Наведите камеру на упаковку кофе';<br>
+      document.getElementById('ar-video').setAttribute('visible', 'false');<br>
+      });<br>
+      })<br>
+      .catch(function(error) {<br>
+      console.error('Ошибка камеры:', error);<br>
+      instruction.textContent = 'Ошибка доступа к камере';<br>
+      startButton.style.display = 'block';<br>
+      startButton.textContent = '🔄 Попробовать снова';<br>
+      });<br>
+      } else {<br>
+      instruction.textContent = 'Ваш браузер не поддерживает AR';<br>
+      }<br>
+      });<br>
+      });<br>
+  &lt;/script&gt;<br>
+  &lt;/body&gt;<br>
+  &lt;/html&gt;</p>
+
+    <a-camera 
+        position="0 0 0" 
+        look-controls="enabled: false" 
+        cursor="rayOrigin: mouse;"
+        active="false"
+        id="camera">
+    </a-camera>
+
+    <a-entity mindar-image-target="targetIndex: 0">
+      <a-entity position="0 0.8 0" rotation="0 0 0">
+        <a-video 
+            src="#video"
+            width="1.6" 
+            height="0.9"
+            position="0 0 0"
+            autoplay="true"
+            visible="false"
+            id="ar-video"
+            material="shader: flat; transparent: true; opacity: 1;"
+        >
+        </a-video>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const startButton = document.getElementById('startButton');
+      const scene = document.getElementById('ar-scene');
+      const instruction = document.getElementById('instruction');
+      
+      startButton.addEventListener('click', function() {
+        // Скрываем кнопку
+        startButton.style.display = 'none';
+        instruction.textContent = 'Ищем упаковку...';
+        
+        // Запрашиваем доступ к камере
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+              // Запускаем AR сцену
+              const arSystem = scene.systems["mindar-image-system"];
+              arSystem.start();
+              
+              // Активируем камеру
+              document.getElementById('camera').setAttribute('active', 'true');
+              
+              // Обработчики для маркера
+              const target = document.querySelector('[mindar-image-target]');
+              target.addEventListener('targetFound', event => {
+                console.log('Цель найдена!');
+                instruction.textContent = 'Упаковка распознана!';
+                document.getElementById('ar-video').setAttribute('visible', 'true');
+                
+                // Запускаем видео
+                const video = document.getElementById('video');
+                video.play().catch(e => console.log('Ошибка видео:', e));
+              });
+              
+              target.addEventListener('targetLost', event => {
+                console.log('Цель потеряна');
+                instruction.textContent = 'Наведите камеру на упаковку кофе';
+                document.getElementById('ar-video').setAttribute('visible', 'false');
+              });
+            })
+            .catch(function(error) {
+              console.error('Ошибка камеры:', error);
+              instruction.textContent = 'Ошибка доступа к камере';
+              startButton.style.display = 'block';
+              startButton.textContent = '🔄 Попробовать снова';
+            });
+        } else {
+          instruction.textContent = 'Ваш браузер не поддерживает AR';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
