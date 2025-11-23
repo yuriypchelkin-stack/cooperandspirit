@@ -58,16 +58,20 @@
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR</button>
+  <button id="startButton">🚀 Запустить AR 2</button>
 
   <a-scene 
          mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
-    renderer="colorManagement: true; alpha: true; premultiplied; antialias: true;"  
+    
     
     id="ar-scene"
       color-space="sRGB"
       embedded 
-      renderer="colorManagement: true; physicallyCorrectLights: true; Alpha: true;"
+      renderer="colorManagement: true; physicallyCorrectLights: true;  
+    alpha: true;          <!-- Разрешаем прозрачность -->
+    premultipliedAlpha: true; <!-- Для корректного смешивания -->
+    antialias: true;"
+    
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
     
