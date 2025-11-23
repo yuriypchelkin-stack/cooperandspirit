@@ -130,7 +130,7 @@
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR</button>
+  <button id="startButton">🚀 Запустить AR сгыещт</button>
 
   <a-scene 
       mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
@@ -155,7 +155,7 @@
     <a-entity mindar-image-target="targetIndex: 0">
       <a-entity position="0 0.8 0" rotation="0 0 0">
         <!-- Тестируем оба шейдера -->
-        <a-plane
+        <a-plane custom-video-alpha
             id="ar-video"
             width="1.6" 
             height="0.9"
@@ -249,5 +249,46 @@
       });
     });
   </script>
+
+<script>
+// Добавьте этот код если предыдущие решения не работают
+AFRAME.registerComponent('custom-video-alpha', {
+  init: function() {
+    const video = document.getElementById('video-source');
+    const texture = new THREE.VideoTexture(video);
+    
+    // Создаем кастомный материал
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        map: { value: texture }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D map;
+        varying vec2 vUv;
+        
+        void main() {
+          vec4 color = texture2D(map, vUv);
+          if (color.a < 0.01) discard;
+          gl_FragColor = color;
+        }
+      `,
+      transparent: true
+    });
+    
+    this.el.getObject3D('mesh').material = material;
+  }
+});
+
+// Использование в a-plane:
+// <a-plane custom-video-alpha ...></a-plane>
+</script>
+  
 </body>
 </html>
