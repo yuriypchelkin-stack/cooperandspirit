@@ -59,7 +59,7 @@
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR</button>
+  <button id="startButton">🚀 Запустить AR-2</button>
 
   <a-scene 
       mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
@@ -84,14 +84,16 @@
     <a-entity mindar-image-target="targetIndex: 0">
       <a-entity position="0 0.8 0" rotation="0 0 0">
         <a-video 
-            src="#video"
-            width="1.6" 
-            height="0.9"
-            position="0 0 0"
-            autoplay="true"
-            visible="false"
-            id="ar-video"
-            material="shader: flat; transparent: true; opacity: 1;"
+           
+
+
+          geometry="primitive: plane; width: 1.6; height: 0.9"
+    position="0 0 0"
+    material="shader: flat; transparent: true; src: #video; opacity: 1"
+    visible="false"
+    id="ar-video">
+
+          
         >
         </a-video>
       </a-entity>
