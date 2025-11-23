@@ -61,7 +61,7 @@
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR mov2</button>
+  <button id="startButton">🚀 Запустить AR mov3</button>
 
   <a-scene 
          mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
@@ -113,10 +113,6 @@
   </a-scene>
 
   <script>
-
-
-const player = document.getElementById('video');
-video.src = supportsHEVCAlpha() ? 'assets/output.mov' : 'assets/output.webm';
 
     
     document.addEventListener('DOMContentLoaded', function() {
@@ -174,6 +170,24 @@ video.src = supportsHEVCAlpha() ? 'assets/output.mov' : 'assets/output.webm';
         }
       });
     });
+
+
+function supportsHEVCAlpha() {
+  const navigator = window.navigator;
+  const ua = navigator.userAgent.toLowerCase()
+  const hasMediaCapabilities = !!(navigator.mediaCapabilities && navigator.mediaCapabilities.decodingInfo)
+  const isSafari = ((ua.indexOf('safari') != -1) && (!(ua.indexOf('chrome')!= -1) && (ua.indexOf('version/')!= -1)))
+  return isSafari && hasMediaCapabilities
+}
+    
   </script>
+
+  <script>
+const player = document.getElementById('video');
+player.src = supportsHEVCAlpha() ? 'assets/output.mov' : 'assets/output.webm';
+</script>
+
+
+  
 </body>
 </html>
