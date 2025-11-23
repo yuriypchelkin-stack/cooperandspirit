@@ -116,23 +116,6 @@
       const instruction = document.getElementById('instruction');
 
 
-// Добавьте этот код перед startButton.addEventListener
-const video = document.getElementById('video');
-video.addEventListener('loadeddata', function() {
-    console.log('Видео загружено, проверяем прозрачность...');
-    
-    // Создаем canvas для проверки пикселей
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    ctx.drawImage(video, 0, 0);
-    const imageData = ctx.getImageData(0, 0, 1, 1);
-    const alpha = imageData.data[3];
-    
-    console.log('Альфа-канал первого пикселя:', alpha);
-});
 
       
 
