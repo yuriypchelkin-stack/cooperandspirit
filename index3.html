@@ -58,7 +58,7 @@
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR 4</button>
+  <button id="startButton">🚀 Запустить AR 5</button>
 
   <a-scene 
          mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
@@ -114,6 +114,28 @@
       const startButton = document.getElementById('startButton');
       const scene = document.getElementById('ar-scene');
       const instruction = document.getElementById('instruction');
+
+
+// Добавьте этот код перед startButton.addEventListener
+const video = document.getElementById('video');
+video.addEventListener('loadeddata', function() {
+    console.log('Видео загружено, проверяем прозрачность...');
+    
+    // Создаем canvas для проверки пикселей
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    ctx.drawImage(video, 0, 0);
+    const imageData = ctx.getImageData(0, 0, 1, 1);
+    const alpha = imageData.data[3];
+    
+    console.log('Альфа-канал первого пикселя:', alpha);
+});
+
+      
+
       
       startButton.addEventListener('click', function() {
         // Скрываем кнопку
