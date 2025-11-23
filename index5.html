@@ -2,295 +2,155 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Кофе - MindAR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR Кофе - Кроссплатформенный</title>
+  
+  <!-- Библиотеки -->
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image.prod.js"></script>
   <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.3/dist/mindar-image-aframe.prod.js"></script>
 
-  <!-- Умный шейдер для сохранения деталей -->
-  <script>
-    AFRAME.registerShader('smart-alpha', {
-      schema: {
-        src: { type: 'map', is: 'uniform' },
-        opacity: { type: 'number', is: 'uniform', default: 1 },
-        edgeThreshold: { type: 'number', is: 'uniform', default: 0.1 }
-      },
-
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        uniform sampler2D src;
-        uniform float opacity;
-        uniform float edgeThreshold;
-        varying vec2 vUv;
-        
-        void main() {
-          vec4 color = texture2D(src, vUv);
-          
-          // Проверяем соседние пиксели для определения краев
-          vec4 left = texture2D(src, vUv + vec2(-0.002, 0.0));
-          vec4 right = texture2D(src, vUv + vec2(0.002, 0.0));
-          vec4 top = texture2D(src, vUv + vec2(0.0, -0.002));
-          vec4 bottom = texture2D(src, vUv + vec2(0.0, 0.002));
-          
-          // Вычисляем разницу с соседями
-          float edge = length(color.rgb - left.rgb) + 
-                      length(color.rgb - right.rgb) + 
-                      length(color.rgb - top.rgb) + 
-                      length(color.rgb - bottom.rgb);
-          
-          // Если пиксель темный НО находится на краю (значит это деталь) - сохраняем его
-          float brightness = (color.r + color.g + color.b) / 3.0;
-          bool isEdge = edge > edgeThreshold;
-          bool isDark = brightness < 0.3;
-          
-          // Удаляем только темные пиксели, которые НЕ являются краями
-          if (isDark && !isEdge) {
-            discard;
-          }
-          
-          gl_FragColor = vec4(color.rgb, opacity);
-        }
-      `
-    });
-
-    // Альтернативный шейдер - использует только альфа-канал если он есть
-    AFRAME.registerShader('true-alpha', {
-      schema: {
-        src: { type: 'map', is: 'uniform' },
-        opacity: { type: 'number', is: 'uniform', default: 1 }
-      },
-
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        uniform sampler2D src;
-        uniform float opacity;
-        varying vec2 vUv;
-        
-        void main() {
-          vec4 color = texture2D(src, vUv);
-          
-          // Просто используем альфа-канал видео
-          // Если альфа-канала нет, этот шейдер не будет работать
-          if (color.a < 0.01) {
-            discard;
-          }
-          
-          gl_FragColor = vec4(color.rgb, opacity * color.a);
-        }
-      `
-    });
-  </script>
-
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body { 
-      margin: 0; 
-      overflow: hidden; 
-      width: 100vw;
-      height: 100vh;
-      position: fixed;
-    }
-    #instruction { 
-      position: absolute; 
-      top: 0;
-      left: 0; 
-      width: 100%; 
-      text-align: center; 
-      color: white; 
-      font-family: Arial; 
-      z-index: 1000; 
-      background: rgba(0,0,0,0.7); 
-      padding: 15px;
-      pointer-events: none;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; width: 100%; height: 100%; position: fixed; background: #000; }
+    #instruction {
+      position: absolute; top: 0; left: 0; width: 100%; text-align: center; color: white;
+      font-family: Arial; z-index: 1000; background: rgba(0,0,0,0.8); padding: 12px; pointer-events: none;
+      font-size: 16px;
     }
     #startButton {
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #8B4513;
-      color: white;
-      border: none;
-      padding: 15px 30px;
-      font-size: 18px;
-      border-radius: 25px;
-      cursor: pointer;
-      z-index: 1001;
+      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: #8B4513; color: white; border: none; padding: 15px 30px;
+      font-size: 18px; border-radius: 25px; cursor: pointer; z-index: 1001;
     }
     .a-canvas {
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+      position: absolute !important; top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important; image-rendering: crisp-edges;
     }
   </style>
 </head>
 <body>
   <div id="instruction">Наведите камеру на упаковку кофе</div>
-  <button id="startButton">🚀 Запустить AR dfg</button>
+  <button id="startButton">🚀 Запустить AR яяя</button>
 
-  <a-scene 
-      mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; smooth: true; smoothCount: 8; smoothTolerance: 0.01; smoothThreshold: 3; filterMinCF:0.0001; filterBeta: 0.001"
-      id="ar-scene"
-      embedded 
-      renderer="colorManagement: true; alpha: true; premultipliedAlpha: false;"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false">
-    
+  <a-scene
+    id="ar-scene"
+    color-space="sRGB"
+    embedded
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    renderer="colorManagement: true; alpha: true; antialias: true"
+    mindar-image="
+      imageTargetSrc: assets/targets.mind;
+      autoStart: false;
+      smooth: true;
+      smoothCount: 20;
+      smoothTolerance: 0.005
+    ">
+
     <a-assets>
-      <video id="video-source" src="assets/video.mov" preload="auto" loop playsinline webkit-playsinline></video>
+      <!-- WebM для Android/Chrome -->
+      <video id="video-webm" preload="auto" loop playsinline>
+        <source src="assets/video.webm" type="video/webm; codecs=vp9">
+      </video>
+      
+      <!-- MOV/HEVC для iOS/Safari -->
+      <video id="video-mov" preload="auto" loop playsinline webkit-playsinline>
+        <source src="assets/video.mov" type="video/quicktime; codecs=hvc1">
+      </video>
     </a-assets>
 
-    <a-camera 
-        position="0 0 0" 
-        look-controls="enabled: false" 
-        cursor="rayOrigin: mouse;"
-        active="false"
-        id="camera">
-    </a-camera>
+    <a-camera position="0 0 0" active="false" id="camera"></a-camera>
 
     <a-entity mindar-image-target="targetIndex: 0">
-      <a-entity position="0 0.8 0" rotation="0 0 0">
-        <!-- Тестируем разные шейдеры -->
-        <a-plane
-            id="ar-video"
-            width="1.6" 
-            height="0.9"
-            position="0 0 0"
-            visible="false"
-            material="shader: smart-alpha; src: #video-source; opacity: 1.0; edgeThreshold: 0.05">
-        </a-plane>
-      </a-entity>
+      <a-video
+        id="ar-video"
+        width="1.6"
+        height="0.9"
+        position="0 -0.1 0"
+        visible="false"
+        material="shader: flat; transparent: true; opacity: 1.0">
+      </a-video>
     </a-entity>
   </a-scene>
 
   <script>
-    // Функция для проверки типа видео и наличия альфа-канала
-    function analyzeVideo() {
-      const video = document.getElementById('video-source');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+    // Определение поддерживаемого формата
+    function getVideoSource() {
+      const video = document.createElement('video');
       
-      video.addEventListener('loadeddata', function() {
-        console.log('Видео загружено:', video.videoWidth, 'x', video.videoHeight);
-        
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        let transparentPixels = 0;
-        let blackPixels = 0;
-        let edgePixels = 0;
-        
-        // Проверяем разные области
-        for (let y = 0; y < canvas.height; y += 10) {
-          for (let x = 0; x < canvas.width; x += 10) {
-            const i = (y * canvas.width + x) * 4;
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const a = data[i + 3];
-            
-            if (a < 128) transparentPixels++;
-            if (r < 10 && g < 10 && b < 10) blackPixels++;
-            
-            // Простая проверка на края
-            if (x > 0 && y > 0 && x < canvas.width-1 && y < canvas.height-1) {
-              const left = data[((y) * canvas.width + (x-1)) * 4];
-              const right = data[((y) * canvas.width + (x+1)) * 4];
-              if (Math.abs(r - left) > 50 || Math.abs(r - right) > 50) {
-                edgePixels++;
-              }
-            }
-          }
-        }
-        
-        console.log('Прозрачных пикселей:', transparentPixels);
-        console.log('Черных пикселей:', blackPixels);
-        console.log('Пикселей на краях:', edgePixels);
-        
-        // Автоматически выбираем шейдер на основе анализа
-        const arVideo = document.getElementById('ar-video');
-        if (transparentPixels > 1000) {
-          console.log('Используем шейдер true-alpha (есть альфа-канал)');
-          arVideo.setAttribute('material', 'shader', 'true-alpha');
-        } else if (blackPixels > 1000 && edgePixels > 100) {
-          console.log('Используем шейдер smart-alpha (есть детали)');
-          arVideo.setAttribute('material', 'shader', 'smart-alpha');
-        } else {
-          console.log('Используем стандартный шейдер');
-          arVideo.setAttribute('material', 'shader', 'flat');
-          arVideo.setAttribute('material', 'transparent', 'true');
-        }
-      });
+      // Проверка поддержки HEVC (iOS)
+      const hevcSupported = [
+        'video/mp4; codecs="hvc1"',
+        'video/quicktime; codecs="hvc1"'
+      ].some(type => video.canPlayType(type) !== '');
+
+      // Проверка поддержки VP9 WebM (Android/Chrome)
+      const webmSupported = video.canPlayType('video/webm; codecs="vp9"') !== '';
+
+      // Приоритет: iOS/Safari → HEVC, остальное → WebM
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+      if ((isIOS || isSafari) && hevcSupported) {
+        return 'mov';
+      } else if (webmSupported) {
+        return 'webm';
+      } else {
+        // Fallback: пробуем оба формата
+        return isIOS ? 'mov' : 'webm';
+      }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', () => {
       const startButton = document.getElementById('startButton');
-      const scene = document.getElementById('ar-scene');
       const instruction = document.getElementById('instruction');
-      
-      // Анализируем видео при загрузке
-      analyzeVideo();
-      
-      startButton.addEventListener('click', function() {
-        startButton.style.display = 'none';
-        instruction.textContent = 'Ищем упаковку...';
-        
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-              const arSystem = scene.systems["mindar-image-system"];
-              arSystem.start();
-              document.getElementById('camera').setAttribute('active', 'true');
-              
-              const target = document.querySelector('[mindar-image-target]');
-              target.addEventListener('targetFound', event => {
-                console.log('Цель найдена!');
-                instruction.textContent = 'Упаковка распознана!';
-                document.getElementById('ar-video').setAttribute('visible', 'true');
-                
-                const video = document.getElementById('video-source');
-                video.play().catch(e => console.log('Ошибка видео:', e));
-              });
-              
-              target.addEventListener('targetLost', event => {
-                console.log('Цель потеряна');
-                instruction.textContent = 'Наведите камеру на упаковку кофе';
-                document.getElementById('ar-video').setAttribute('visible', 'false');
-              });
-            })
-            .catch(function(error) {
-              console.error('Ошибка камеры:', error);
-              instruction.textContent = 'Ошибка доступа к камере';
-              startButton.style.display = 'block';
-              startButton.textContent = '🔄 Попробовать снова';
+      const scene = document.getElementById('ar-scene');
+
+      startButton.addEventListener('click', async () => {
+        try {
+          startButton.style.display = 'none';
+          instruction.textContent = 'Ожидание камеры...';
+
+          // Доступ к камере
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+          });
+
+          instruction.textContent = 'Поиск упаковки...';
+          await scene.systems['mindar-image-system'].start();
+          document.getElementById('camera').setAttribute('active', 'true');
+
+          // Выбор источника видео
+          const format = getVideoSource();
+          const videoId = `video-${format}`;
+          const videoEl = document.getElementById(videoId);
+          
+          document.getElementById('ar-video').setAttribute('src', `#${videoId}`);
+
+          const target = document.querySelector('[mindar-image-target]');
+          
+          target.addEventListener('targetFound', () => {
+            instruction.textContent = 'Упаковка распознана!';
+            document.getElementById('ar-video').setAttribute('visible', 'true');
+            
+            videoEl.play().catch(err => {
+              console.error('Ошибка видео:', err);
+              instruction.textContent = 'Ошибка воспроизведения';
             });
-        } else {
-          instruction.textContent = 'Ваш браузер не поддерживает AR';
+          });
+
+          target.addEventListener('targetLost', () => {
+            instruction.textContent = 'Наведите на упаковку';
+            document.getElementById('ar-video').setAttribute('visible', 'false');
+            videoEl.pause();
+            videoEl.currentTime = 0;
+          });
+
+        } catch (err) {
+          console.error('Ошибка:', err);
+          instruction.textContent = `Ошибка: ${err.message || 'Неизвестная ошибка'}`;
+          startButton.style.display = 'block';
         }
       });
     });
